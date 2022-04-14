@@ -4,8 +4,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskEntity;
+import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
 import pragmasoft.andriilupynos.js_executioner.data.repository.TaskRepository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Service
 public class TaskStore {
@@ -52,5 +56,10 @@ public class TaskStore {
 
     public Mono<Void> deleteAll() {
         return taskRepository.deleteAll();
+    }
+
+    public Flux<Task> findAllByStatusIn(List<TaskStatus> statuses) {
+        return taskRepository.findAllByStatusIn(statuses)
+                .map(TaskStore::convertToTask);
     }
 }

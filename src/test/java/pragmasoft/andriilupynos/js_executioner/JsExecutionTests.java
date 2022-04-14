@@ -93,4 +93,5 @@ public class JsExecutionTests {
         assertEquals("org.graalvm.polyglot.PolyglotException: Some error", storedTask.getError());
         assertEquals("Hi\n", storedTask.getOutput());
     }
+
 }
