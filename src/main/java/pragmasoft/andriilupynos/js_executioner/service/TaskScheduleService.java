@@ -16,7 +16,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Service
-public class TaskScheduler {
+public class TaskScheduleService {
 
     @Autowired private TaskStore taskStore;
 

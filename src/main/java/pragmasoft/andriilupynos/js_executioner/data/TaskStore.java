@@ -27,7 +27,12 @@ public class TaskStore {
                 .id(taskEntity.getId())
                 .name(taskEntity.getName())
                 .code(taskEntity.getCode())
+                .output(taskEntity.getOutput())
+                .error(taskEntity.getError())
                 .status(taskEntity.getStatus())
+                .scheduledAt(taskEntity.getScheduledAt())
+                .beginExecDate(taskEntity.getBeginExecDate())
+                .endExecDate(taskEntity.getEndExecDate())
                 .build();
     }
 
@@ -36,8 +41,16 @@ public class TaskStore {
                 .id(task.getId())
                 .name(task.getName())
                 .code(task.getCode())
+                .output(task.getOutput())
+                .error(task.getError())
                 .status(task.getStatus())
+                .scheduledAt(task.getScheduledAt())
+                .beginExecDate(task.getBeginExecDate())
+                .endExecDate(task.getEndExecDate())
                 .build();
     }
 
+    public Mono<Void> deleteAll() {
+        return taskRepository.deleteAll();
+    }
 }

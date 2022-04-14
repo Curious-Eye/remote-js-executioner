@@ -7,5 +7,6 @@ public interface TaskRepository {
 
     Mono<TaskEntity> findByName(String name);
     Mono<TaskEntity> save(TaskEntity task);
+    Mono<Void> deleteAll();
 
 }

@@ -31,4 +31,10 @@ public class ConcurrentInMemoryTaskRepository implements TaskRepository {
         return Mono.just(task);
     }
 
+    @Override
+    public Mono<Void> deleteAll() {
+        taskStore.clear();
+        return Mono.empty();
+    }
+
 }

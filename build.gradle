@@ -20,6 +20,9 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.graalvm.sdk:graal-sdk:22.0.0'
+    implementation 'org.graalvm.js:js:22.0.0'
+    implementation 'org.graalvm.js:js-scriptengine:22.0.0'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

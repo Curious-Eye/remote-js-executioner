@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Date;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,6 +16,11 @@ public class Task {
     private String id;
     private String name;
     private String code;
+    private String output;
+    private String error;
     private TaskStatus status;
+    private Date scheduledAt;
+    private Date beginExecDate;
+    private Date endExecDate;
 
 }
