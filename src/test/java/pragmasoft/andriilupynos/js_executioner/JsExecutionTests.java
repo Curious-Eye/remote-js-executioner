@@ -13,6 +13,7 @@ import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
 import reactor.test.StepVerifier;
 
+import java.io.StringWriter;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -87,7 +88,8 @@ public class JsExecutionTests {
                         .name("Task 1")
                         .code(code)
                         .status(TaskStatus.NEW)
-                        .build()
+                        .build(),
+                new StringWriter()
         ).block();
 
         // THEN
@@ -112,7 +114,8 @@ public class JsExecutionTests {
                         .name("Task 1")
                         .code(code)
                         .status(TaskStatus.NEW)
-                        .build()
+                        .build(),
+                new StringWriter()
         ).block();
 
         // THEN

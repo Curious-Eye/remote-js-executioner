@@ -17,7 +17,7 @@ public class TaskValidateService {
      * Validates given task. If given task has invalid code (currently only accepts js code),
      * then an {@link InvalidJSProvidedException} exception will be thrown
      *
-     * @param task - task to validate
+     * @param task task to validate
      * @see InvalidJSProvidedException
      */
     public Mono<Void> validate(Task task) {

@@ -33,8 +33,9 @@ public class TaskExecuteService {
 
     @Autowired private TaskStore taskStore;
 
-    private final Scheduler scheduler = Schedulers.newParallel(TaskExecuteService.class.getName());
-    private final ConcurrentHashMap<String, Disposable> taskIdAndExecution = new ConcurrentHashMap<>();
+    private final Scheduler scheduler =
+            Schedulers.newParallel(TaskExecuteService.class.getName());
+    private final ConcurrentHashMap<String, ExecutionContext> taskIdAndExecution = new ConcurrentHashMap<>();
 
     /**
      * Periodically schedules tasks for execution
@@ -49,28 +50,33 @@ public class TaskExecuteService {
                     return taskStore.save(task);
                 })
                 .doOnNext(task -> {
+                    var taskOutputWriter = new StringWriter();
                     taskIdAndExecution.put(
                             task.getId(),
-                            scheduler.schedule(() -> this.execute(task).block())
+                            ExecutionContext.builder()
+                                    .execution(scheduler.schedule(() -> this.execute(task, taskOutputWriter).subscribe()))
+                                    .currentOutputWriter(taskOutputWriter)
+                                    .build()
                     );
-                    log.debug("Scheduled task {}", task.getId());
+                    log.debug("Scheduled task {} for execution", task.getId());
                 })
                 .then()
                 .block();
     }
 
     /**
-     * Execute given task
+     * Execute given task and write its output to outputWriter
      *
-     * @param task - task to execute
-     * @return - Mono, indicating when task is executed
+     * @param task task to execute
+     * @param outputWriter writer to write task's output to
+     * @return Mono indicating when task is executed
      */
-    public Mono<Void> execute(Task task) {
+    public Mono<Void> execute(Task task, StringWriter outputWriter) {
         log.debug("Executing task {}", task.getId());
         task.setStatus(TaskStatus.EXECUTING);
         task.setBeginExecDate(new Date());
         return taskStore.save(task)
-                .flatMap(this::executeCode)
+                .then(executeCode(task, outputWriter))
                 .flatMap(executeRes -> {
                     task.setStatus(
                             executeRes.errored ? TaskStatus.ERRORED :
@@ -88,15 +94,15 @@ public class TaskExecuteService {
                 .then();
     }
 
-    private Mono<ExecuteCodeResult> executeCode(Task task) {
-        var scriptOutput = new StringWriter();
+    private Mono<ExecuteCodeResult> executeCode(Task task, StringWriter outputWriter) {
         var engine = GraalJSScriptEngine.create(null, Context.newBuilder("js"));
-        engine.getContext().setWriter(scriptOutput);
+        engine.getContext().setWriter(outputWriter);
         return Mono.fromCallable(() -> engine.eval(task.getCode()))
-                .then(Mono.fromCallable(() -> ExecuteCodeResult.builder().output(scriptOutput.toString()).build()))
-                .timeout(Duration.ofSeconds(60))
+                .then(Mono.fromCallable(() ->
+                        ExecuteCodeResult.builder().output(outputWriter.toString()).build()))
+                .timeout(Duration.ofSeconds(30))
                 .doOnError(err -> log.error("Error evaluating script {}: {}", task.getId(), err.getMessage()))
-                .onErrorResume(err -> Mono.just(buildExecResultOnError(scriptOutput, err)));
+                .onErrorResume(err -> Mono.just(buildExecResultOnError(outputWriter, err)));
     }
 
     private ExecuteCodeResult buildExecResultOnError(StringWriter scriptOutput, Throwable err) {
@@ -104,7 +110,7 @@ public class TaskExecuteService {
                 ExecuteCodeResult.builder().output(scriptOutput.toString());
 
         if (err.getClass().isAssignableFrom(TimeoutException.class)) {
-            return resBuilder.error("Script timed-out. Maximum execution duration is 60 seconds")
+            return resBuilder.error("Script timed-out. Maximum execution duration is 30 seconds")
                     .errored(true)
                     .build();
         }
@@ -118,17 +124,31 @@ public class TaskExecuteService {
     }
 
     /**
+     * Returns current execution output for task with requested id if
+     * it is currently being executed or null
+     *
+     * @param taskId id of the task to return
+     * @return Execution output or null in case task is not being executed
+     */
+    public String getCurrentExecutionOutput(String taskId) {
+        var exec = taskIdAndExecution.get(taskId);
+        if (exec == null)
+            return null;
+        return exec.currentOutputWriter.toString();
+    }
+
+    /**
      * Stop task by id. This method does nothing if task with such id is not being executed
      *
-     * @param taskId - Id of the task
-     * @return - Mono signaling when operation completes
+     * @param taskId Id of the task
+     * @return Mono signaling when operation completes
      */
     public Mono<Void> stopById(String taskId) {
         log.debug("Stopping task {}", taskId);
         return Mono.fromCallable(() -> {
             var taskExecutionState = taskIdAndExecution.get(taskId);
             if (taskExecutionState != null) {
-                taskExecutionState.dispose();
+                taskExecutionState.getExecution().dispose();
             }
             return null;
         });
@@ -142,7 +162,7 @@ public class TaskExecuteService {
     public Mono<Void> stopAll() {
         log.debug("Stopping all current tasks");
         return Mono.fromCallable(() -> {
-            taskIdAndExecution.values().forEach(Disposable::dispose);
+            taskIdAndExecution.values().forEach(exec -> exec.getExecution().dispose());
             return null;
         });
     }
@@ -156,6 +176,19 @@ public class TaskExecuteService {
         private String error;
         private boolean errored;
         private boolean stopped;
+    }
+
+    /**
+     * This class is needed to allow access to task's output during its execution
+     * and to be able to stop its execution if needed.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class ExecutionContext {
+        private StringWriter currentOutputWriter;
+        private Disposable execution;
     }
 
 }

@@ -11,6 +11,7 @@ import pragmasoft.andriilupynos.js_executioner.api.dto.TaskStatusDto;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
+import pragmasoft.andriilupynos.js_executioner.service.TaskQueryService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,8 +22,12 @@ public class TaskController {
 
     @Autowired private TaskScheduleService taskScheduleService;
     @Autowired private TaskExecuteService taskExecuteService;
+    @Autowired private TaskQueryService taskQueryService;
     @Autowired private TaskStore taskStore;
 
+    /**
+     * Create a task for execution
+     */
     @PostMapping("/tasks")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<TaskCreateRespDto> createTask(@RequestBody TaskCreateRqDto rq) {
@@ -41,19 +46,28 @@ public class TaskController {
                 .onErrorResume(err -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, err.getMessage())));
     }
 
+    /**
+     * Find task by id, including current execution output
+     */
     @GetMapping("/tasks/{id}")
     public Mono<TaskDto> findTaskById(@PathVariable String id) {
-        return taskStore.findById(id)
+        return taskQueryService.getTaskWithCurrentOutputById(id)
                 .map(this::toTaskDto)
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
+    /**
+     * Return all tasks without theirs current output
+     */
     @GetMapping("/tasks")
     public Flux<TaskDto> findAllTasks() {
         return taskStore.findAll()
                 .map(this::toTaskDto);
     }
 
+    /**
+     * Find task by name
+     */
     @GetMapping("/tasks/actions/find-by-name")
     public Mono<TaskDto> findTaskByName(@RequestParam String name) {
         return taskStore.findByName(name)
@@ -61,6 +75,9 @@ public class TaskController {
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
+    /**
+     * Stop task's execution
+     */
     @PutMapping("/tasks/{id}/stop-execution")
     public Mono<Void> stopTask(@PathVariable String id) {
         return taskExecuteService.stopById(id);
