@@ -34,7 +34,6 @@ public class TaskExecuteService {
     @Autowired private TaskStore taskStore;
 
     private final Scheduler scheduler = Schedulers.newParallel(TaskExecuteService.class.getName());
-//            Schedulers.newBoundedElastic(4, 500, TaskExecuteService.class.getName());
     private final ConcurrentHashMap<String, Disposable> taskIdAndExecution = new ConcurrentHashMap<>();
 
     /**
