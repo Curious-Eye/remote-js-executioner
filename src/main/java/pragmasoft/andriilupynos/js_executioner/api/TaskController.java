@@ -60,8 +60,11 @@ public class TaskController {
      * Return all tasks without theirs current output
      */
     @GetMapping("/tasks")
-    public Flux<TaskDto> findAllTasks() {
-        return taskStore.findAll()
+    public Flux<TaskDto> findTasks(
+            @RequestParam(required = false) TaskStatusDto status,
+            @RequestParam(required = false) Boolean newFirst
+    ) {
+        return taskQueryService.getTasksMatching(status, newFirst)
                 .map(this::toTaskDto);
     }
 
@@ -94,6 +97,7 @@ public class TaskController {
                 .scheduledAt(task.getScheduledAt())
                 .beginExecDate(task.getBeginExecDate())
                 .endExecDate(task.getEndExecDate())
+                .createdDate(task.getCreatedDate())
                 .build();
     }
 

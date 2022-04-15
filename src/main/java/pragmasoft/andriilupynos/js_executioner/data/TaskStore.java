@@ -56,6 +56,7 @@ public class TaskStore {
                 .scheduledAt(taskEntity.getScheduledAt())
                 .beginExecDate(taskEntity.getBeginExecDate())
                 .endExecDate(taskEntity.getEndExecDate())
+                .createdDate(taskEntity.getCreatedDate())
                 .build();
     }
 
@@ -70,6 +71,8 @@ public class TaskStore {
                 .scheduledAt(task.getScheduledAt())
                 .beginExecDate(task.getBeginExecDate())
                 .endExecDate(task.getEndExecDate())
+                .createdDate(task.getCreatedDate())
                 .build();
     }
+
 }

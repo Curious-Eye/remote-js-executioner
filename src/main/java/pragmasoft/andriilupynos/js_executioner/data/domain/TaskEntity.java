@@ -23,5 +23,7 @@ public class TaskEntity {
     private Date beginExecDate;
     private Date endExecDate;
 
+    private Date createdDate;
+
 }
 

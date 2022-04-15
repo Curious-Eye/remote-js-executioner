@@ -23,4 +23,6 @@ public class Task {
     private Date beginExecDate;
     private Date endExecDate;
 
+    private Date createdDate;
+
 }

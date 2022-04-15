@@ -21,4 +21,5 @@ public class TaskDto {
     private Date scheduledAt;
     private Date beginExecDate;
     private Date endExecDate;
+    private Date createdDate;
 }

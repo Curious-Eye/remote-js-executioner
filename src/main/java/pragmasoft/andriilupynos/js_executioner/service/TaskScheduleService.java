@@ -39,6 +39,7 @@ public class TaskScheduleService {
                         .status(TaskStatus.NEW)
                         .name(this.getNameOrGenerateNew(taskModel))
                         .scheduledAt(taskModel.getExecutionDate())
+                        .createdDate(new Date())
                         .build();
 
         return taskValidateService.validate(task)
