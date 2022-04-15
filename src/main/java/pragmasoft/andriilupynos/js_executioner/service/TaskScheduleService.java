@@ -22,10 +22,10 @@ public class TaskScheduleService {
     @Autowired private TaskValidateService taskValidateService;
 
     /**
-     * Schedule taskModel for future execution
+     * Schedule a task for future execution
      *
      * @param taskModel - Model of the task to schedule
-     * @return - Mono of scheduled taskModel
+     * @return - Mono with scheduled task
      */
     public Mono<Task> schedule(TaskScheduleModel taskModel) {
         var task =

@@ -1,5 +1,5 @@
 package pragmasoft.andriilupynos.js_executioner.api.dto;
 
 public enum TaskStatusDto {
-    COMPLETED, NEW, ERRORED, EXECUTING, STOPPED
+    NEW, SCHEDULED,  EXECUTING, STOPPED, COMPLETED, ERRORED
 }

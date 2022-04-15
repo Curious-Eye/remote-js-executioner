@@ -10,7 +10,8 @@ import reactor.core.publisher.Mono;
 @Service
 public class TaskValidateService {
 
-    private final GraalJSScriptEngine jsEngine = GraalJSScriptEngine.create(null, Context.newBuilder("js"));
+    private final GraalJSScriptEngine jsEngine =
+            GraalJSScriptEngine.create(null, Context.newBuilder("js"));
 
     /**
      * Validates given task. If given task has invalid code (currently only accepts js code),

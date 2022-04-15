@@ -33,8 +33,8 @@ public class TaskExecuteService {
 
     @Autowired private TaskStore taskStore;
 
-    private final Scheduler scheduler =
-            Schedulers.newBoundedElastic(4, 500, TaskExecuteService.class.getName());
+    private final Scheduler scheduler = Schedulers.newParallel(TaskExecuteService.class.getName());
+//            Schedulers.newBoundedElastic(4, 500, TaskExecuteService.class.getName());
     private final ConcurrentHashMap<String, Disposable> taskIdAndExecution = new ConcurrentHashMap<>();
 
     /**
@@ -42,21 +42,20 @@ public class TaskExecuteService {
      */
     @Scheduled(fixedRate = 2000)
     public void checkTasksAndExecute() {
-        scheduler.start();
-        taskStore.findAllByStatusIn(List.of(TaskStatus.EXECUTING, TaskStatus.NEW))
+        taskStore.findAllByStatusIn(List.of(TaskStatus.EXECUTING, TaskStatus.SCHEDULED, TaskStatus.NEW))
                 .filter(task -> !taskIdAndExecution.containsKey(task.getId()))
                 .filter(task -> task.getScheduledAt() == null || !task.getScheduledAt().after(new Date()))
-                .collectList()
-                .filter(tasks -> !tasks.isEmpty())
-                .doOnNext(tasks ->
-                        tasks.forEach(task -> {
-                            taskIdAndExecution.put(
-                                    task.getId(),
-                                    scheduler.schedule(() -> this.execute(task).block())
-                            );
-                            log.debug("Scheduled task {}", task.getId());
-                        })
-                )
+                .flatMap(task -> {
+                    task.setStatus(TaskStatus.SCHEDULED);
+                    return taskStore.save(task);
+                })
+                .doOnNext(task -> {
+                    taskIdAndExecution.put(
+                            task.getId(),
+                            scheduler.schedule(() -> this.execute(task).block())
+                    );
+                    log.debug("Scheduled task {}", task.getId());
+                })
                 .then()
                 .block();
     }
