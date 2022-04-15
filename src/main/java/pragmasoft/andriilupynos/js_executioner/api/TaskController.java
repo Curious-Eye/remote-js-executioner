@@ -57,7 +57,8 @@ public class TaskController {
     }
 
     /**
-     * Return all tasks without theirs current output
+     * Return all tasks without theirs current output.
+     * Optionally filter by status or sort be createdDate
      */
     @GetMapping("/tasks")
     public Flux<TaskDto> findTasks(
