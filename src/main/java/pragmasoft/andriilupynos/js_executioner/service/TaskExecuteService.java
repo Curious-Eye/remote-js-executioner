@@ -35,21 +35,27 @@ public class TaskExecuteService {
 
     private final Scheduler scheduler =
             Schedulers.newBoundedElastic(4, 500, TaskExecuteService.class.getName());
-    private final ConcurrentHashMap<String, ExecutionState> taskIdAndExecutionState = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Disposable> taskIdAndExecution = new ConcurrentHashMap<>();
 
-    @Scheduled(initialDelay = 5000, fixedRate = 2000)
+    /**
+     * Periodically schedules tasks for execution
+     */
+    @Scheduled(fixedRate = 2000)
     public void checkTasksAndExecute() {
+        scheduler.start();
         taskStore.findAllByStatusIn(List.of(TaskStatus.EXECUTING, TaskStatus.NEW))
-                .filter(task -> !taskIdAndExecutionState.containsKey(task.getId()))
+                .filter(task -> !taskIdAndExecution.containsKey(task.getId()))
                 .filter(task -> task.getScheduledAt() == null || !task.getScheduledAt().after(new Date()))
-                .doOnNext(task ->
-                        taskIdAndExecutionState.put(
-                                task.getId(),
-                                ExecutionState.builder()
-                                        .taskExecution(scheduler.schedule(() -> this.execute(task).block()))
-                                        .output(new StringWriter())
-                                        .build()
-                        )
+                .collectList()
+                .filter(tasks -> !tasks.isEmpty())
+                .doOnNext(tasks ->
+                        tasks.forEach(task -> {
+                            taskIdAndExecution.put(
+                                    task.getId(),
+                                    scheduler.schedule(() -> this.execute(task).block())
+                            );
+                            log.debug("Scheduled task {}", task.getId());
+                        })
                 )
                 .then()
                 .block();
@@ -57,6 +63,7 @@ public class TaskExecuteService {
 
     /**
      * Execute given task
+     *
      * @param task - task to execute
      * @return - Mono, indicating when task is executed
      */
@@ -67,11 +74,18 @@ public class TaskExecuteService {
         return taskStore.save(task)
                 .flatMap(this::executeCode)
                 .flatMap(executeRes -> {
-                    task.setStatus(executeRes.errored ? TaskStatus.ERRORED : TaskStatus.COMPLETED);
+                    task.setStatus(
+                            executeRes.errored ? TaskStatus.ERRORED :
+                                    executeRes.stopped ? TaskStatus.STOPPED : TaskStatus.COMPLETED
+                    );
                     task.setOutput(executeRes.getOutput());
                     task.setError(executeRes.getError());
                     task.setEndExecDate(new Date());
                     return taskStore.save(task);
+                })
+                .doOnNext(it -> {
+                    taskIdAndExecution.remove(it.getId());
+                    log.debug("Done executing task {}", it.getId());
                 })
                 .then();
     }
@@ -81,58 +95,58 @@ public class TaskExecuteService {
         var engine = GraalJSScriptEngine.create(null, Context.newBuilder("js"));
         engine.getContext().setWriter(scriptOutput);
         return Mono.fromCallable(() -> engine.eval(task.getCode()))
-                .then(Mono.fromCallable(() ->
-                        ExecuteCodeResult.builder()
-                                .output(scriptOutput.toString())
-                                .build()
-                ))
-                .doOnError(err -> log.error("Error evaluating script {}:\n{}", task.getId(), err))
-                .onErrorResume(err -> Mono.just(
-                        ExecuteCodeResult.builder()
-                                .output(scriptOutput.toString())
-                                .error(err.getMessage())
-                                .errored(true)
-                                .build()
-                ))
-                .timeout(Duration.ofSeconds(20))
-                .doOnError(err -> log.error("Script {} timed-out", task.getId()))
-                .onErrorReturn(TimeoutException.class,
-                        ExecuteCodeResult.builder()
-                                .output(scriptOutput.toString())
-                                .error("Script timed-out. Maximum execution duration is 20 seconds")
-                                .errored(true)
-                                .build()
-                );
+                .then(Mono.fromCallable(() -> ExecuteCodeResult.builder().output(scriptOutput.toString()).build()))
+                .timeout(Duration.ofSeconds(60))
+                .doOnError(err -> log.error("Error evaluating script {}: {}", task.getId(), err.getMessage()))
+                .onErrorResume(err -> Mono.just(buildExecResultOnError(scriptOutput, err)));
     }
 
-    public Mono<Void> stopById(String taskId) {
-        return taskStore.findById(taskId)
-                .flatMap(task -> {
-                    stopTaskInternal(task);
-                    return taskStore.save(task);
-                })
-                .then();
-    }
+    private ExecuteCodeResult buildExecResultOnError(StringWriter scriptOutput, Throwable err) {
+        var resBuilder =
+                ExecuteCodeResult.builder().output(scriptOutput.toString());
 
-    public Mono<Void> stopAll() {
-        return taskStore.findAllById(taskIdAndExecutionState.keySet())
-                .collectList()
-                .flatMapMany(executingTasks -> {
-                    executingTasks.forEach(this::stopTaskInternal);
-                    return taskStore.saveAll(executingTasks);
-                })
-                .then();
-    }
-
-    private void stopTaskInternal(Task task) {
-        var taskExecutionState = taskIdAndExecutionState.get(task.getId());
-        if (taskExecutionState != null) {
-            taskExecutionState.getTaskExecution().dispose();
-            taskIdAndExecutionState.remove(task.getId());
-            task.setStatus(TaskStatus.STOPPED);
-            task.setEndExecDate(new Date());
-            task.setOutput(taskExecutionState.getOutput().toString());
+        if (err.getClass().isAssignableFrom(TimeoutException.class)) {
+            return resBuilder.error("Script timed-out. Maximum execution duration is 60 seconds")
+                    .errored(true)
+                    .build();
         }
+        if (err.getCause().getMessage().equals("Thread was interrupted.")) {
+            return resBuilder.stopped(true).build();
+        }
+
+        return resBuilder.error(err.getCause().getMessage())
+                .errored(true)
+                .build();
+    }
+
+    /**
+     * Stop task by id. This method does nothing if task with such id is not being executed
+     *
+     * @param taskId - Id of the task
+     * @return - Mono signaling when operation completes
+     */
+    public Mono<Void> stopById(String taskId) {
+        log.debug("Stopping task {}", taskId);
+        return Mono.fromCallable(() -> {
+            var taskExecutionState = taskIdAndExecution.get(taskId);
+            if (taskExecutionState != null) {
+                taskExecutionState.dispose();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Stop all current tasks.
+     *
+     * @return Mono signaling when operation completes
+     */
+    public Mono<Void> stopAll() {
+        log.debug("Stopping all current tasks");
+        return Mono.fromCallable(() -> {
+            taskIdAndExecution.values().forEach(Disposable::dispose);
+            return null;
+        });
     }
 
     @Data
@@ -143,14 +157,7 @@ public class TaskExecuteService {
         private String output;
         private String error;
         private boolean errored;
+        private boolean stopped;
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    private static class ExecutionState {
-        private Disposable taskExecution;
-        private StringWriter output;
-    }
 }

@@ -25,6 +25,12 @@ public class ConcurrentInMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
+    public Flux<TaskEntity> findAllByStatusIn(List<TaskStatus> statuses) {
+        return Flux.fromStream(taskStore.values().parallelStream())
+                .filter(task -> statuses.contains(task.getStatus()));
+    }
+
+    @Override
     public Mono<TaskEntity> save(TaskEntity task) {
         return Mono.fromCallable(() -> {
             if (!StringUtils.hasText(task.getId()))
@@ -50,14 +56,13 @@ public class ConcurrentInMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Flux<TaskEntity> findAllByStatusIn(List<TaskStatus> statuses) {
-        return Flux.fromStream(taskStore.values().parallelStream())
-                .filter(task -> statuses.contains(task.getStatus()));
+    public Mono<TaskEntity> findById(String id) {
+        return Mono.fromCallable(() -> taskStore.get(id));
     }
 
     @Override
-    public Mono<TaskEntity> findById(String id) {
-        return Mono.fromCallable(() -> taskStore.get(id));
+    public Flux<TaskEntity> findAll() {
+        return Flux.fromIterable(taskStore.values());
     }
 
     @Override

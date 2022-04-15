@@ -1,5 +1,6 @@
 package pragmasoft.andriilupynos.js_executioner;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,8 +8,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
+import pragmasoft.andriilupynos.js_executioner.exception.InvalidJSProvidedException;
 import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
+import reactor.test.StepVerifier;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -47,6 +52,30 @@ public class JsExecutionTests {
     }
 
     @Test
+    public void userMustNotBeAbleToScheduleInvalidJs() {
+        // GIVEN
+        String code = "some_var..call()";
+
+        // WHEN - Schedule invalid code execution
+        // THEN - Task should not be created
+        StepVerifier.create(
+                        taskScheduleService.schedule(TaskScheduleService.TaskScheduleModel.builder().code(code).build())
+                )
+                .verifyErrorMatches(err -> {
+                    assertInstanceOf(InvalidJSProvidedException.class, err);
+                    assertEquals(
+                            "SyntaxError: <eval>:1:9 Expected ident but found .\n" +
+                                    "some_var..call()\n" +
+                                    "         ^\n",
+                            err.getMessage()
+                    );
+                    return true;
+                });
+
+        assertEquals(0, taskStore.findAll().collectList().block().size());
+    }
+
+    @Test
     public void userShouldBeAbleToExecuteJs() {
         // GIVEN
         String code = "print('Hi');";
@@ -74,7 +103,7 @@ public class JsExecutionTests {
     public void ifExecutionThrowsAnErrorItShouldBeSaved() {
         // GIVEN
         String code = "print('Hi');" +
-                "throw 'Some error';";
+                "some_undefined_var.call()";
 
         // WHEN
         taskExecuteService.execute(
@@ -91,7 +120,7 @@ public class JsExecutionTests {
         assertNotNull(storedTask);
 
         assertEquals(TaskStatus.ERRORED, storedTask.getStatus());
-        assertEquals("org.graalvm.polyglot.PolyglotException: Some error", storedTask.getError());
+        assertEquals("ReferenceError: some_undefined_var is not defined", storedTask.getError());
         assertEquals("Hi\n", storedTask.getOutput());
     }
 
@@ -106,16 +135,20 @@ public class JsExecutionTests {
                         .status(TaskStatus.NEW)
                         .build()
         ).block();
-        while (taskStore.findByName("Task 1").block().getStatus() != TaskStatus.EXECUTING) {
-            Thread.sleep(1);
-        }
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .until(() -> taskStore.findById("1").block().getStatus() == TaskStatus.EXECUTING);
 
         // WHEN - we stop this task
         taskExecuteService.stopById("1").block();
 
         // THEN - task should be stopped
-        var stoppedTask = taskStore.findByName("Task 1").block();
-        assertEquals(TaskStatus.STOPPED, stoppedTask.getStatus());
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    var stoppedTask = taskStore.findById("1").block();
+                    assertEquals(TaskStatus.STOPPED, stoppedTask.getStatus());
+                });
     }
 
 }

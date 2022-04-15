@@ -26,6 +26,25 @@ public class TaskStore {
                 .map(TaskStore::convertToTask);
     }
 
+    public Mono<Void> deleteAll() {
+        return taskRepository.deleteAll();
+    }
+
+    public Flux<Task> findAllByStatusIn(List<TaskStatus> statuses) {
+        return taskRepository.findAllByStatusIn(statuses)
+                .map(TaskStore::convertToTask);
+    }
+
+    public Mono<Task> findById(String taskId) {
+        return taskRepository.findById(taskId)
+                .map(TaskStore::convertToTask);
+    }
+
+    public Flux<Task> findAll() {
+        return taskRepository.findAll()
+                .map(TaskStore::convertToTask);
+    }
+
     private static Task convertToTask(TaskEntity taskEntity) {
         return Task.builder()
                 .id(taskEntity.getId())
@@ -52,32 +71,5 @@ public class TaskStore {
                 .beginExecDate(task.getBeginExecDate())
                 .endExecDate(task.getEndExecDate())
                 .build();
-    }
-
-    public Mono<Void> deleteAll() {
-        return taskRepository.deleteAll();
-    }
-
-    public Flux<Task> findAllByStatusIn(List<TaskStatus> statuses) {
-        return taskRepository.findAllByStatusIn(statuses)
-                .map(TaskStore::convertToTask);
-    }
-
-    public Mono<Task> findById(String taskId) {
-        return taskRepository.findById(taskId)
-                .map(TaskStore::convertToTask);
-    }
-
-    public Flux<Task> findAllById(Iterable<String> ids) {
-        return taskRepository.findAllById(ids)
-                .map(TaskStore::convertToTask);
-    }
-
-    public Flux<Task> saveAll(Iterable<Task> tasks) {
-        return Flux.fromIterable(tasks)
-                .map(TaskStore::convertToTaskEntity)
-                .collectList()
-                .flatMapMany(taskRepository::saveAll)
-                .map(TaskStore::convertToTask);
     }
 }

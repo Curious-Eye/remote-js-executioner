@@ -19,22 +19,25 @@ import java.util.UUID;
 public class TaskScheduleService {
 
     @Autowired private TaskStore taskStore;
+    @Autowired private TaskValidateService taskValidateService;
 
     /**
-     * Schedule task for future execution
+     * Schedule taskModel for future execution
      *
-     * @param task - task to schedule
-     * @return - Mono of scheduled task
+     * @param taskModel - Model of the task to schedule
+     * @return - Mono of scheduled taskModel
      */
-    public Mono<Task> schedule(TaskScheduleModel task) {
-        return this.taskStore.save(
+    public Mono<Task> schedule(TaskScheduleModel taskModel) {
+        var task =
                 Task.builder()
-                        .code(task.getCode())
+                        .code(taskModel.getCode())
                         .status(TaskStatus.NEW)
-                        .name(this.getNameOrGenerateNew(task))
-                        .scheduledAt(task.getExecutionDate())
-                        .build()
-        );
+                        .name(this.getNameOrGenerateNew(taskModel))
+                        .scheduledAt(taskModel.getExecutionDate())
+                        .build();
+
+        return taskValidateService.validate(task)
+                .then(taskStore.save(task));
     }
 
     private String getNameOrGenerateNew(TaskScheduleModel task) {
