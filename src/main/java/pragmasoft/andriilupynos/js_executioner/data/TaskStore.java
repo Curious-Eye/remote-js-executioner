@@ -62,4 +62,22 @@ public class TaskStore {
         return taskRepository.findAllByStatusIn(statuses)
                 .map(TaskStore::convertToTask);
     }
+
+    public Mono<Task> findById(String taskId) {
+        return taskRepository.findById(taskId)
+                .map(TaskStore::convertToTask);
+    }
+
+    public Flux<Task> findAllById(Iterable<String> ids) {
+        return taskRepository.findAllById(ids)
+                .map(TaskStore::convertToTask);
+    }
+
+    public Flux<Task> saveAll(Iterable<Task> tasks) {
+        return Flux.fromIterable(tasks)
+                .map(TaskStore::convertToTaskEntity)
+                .collectList()
+                .flatMapMany(taskRepository::saveAll)
+                .map(TaskStore::convertToTask);
+    }
 }

@@ -27,11 +27,12 @@ public class TaskScheduleService {
      * @return - Mono of scheduled task
      */
     public Mono<Task> schedule(TaskScheduleModel task) {
-        return taskStore.save(
+        return this.taskStore.save(
                 Task.builder()
                         .code(task.getCode())
                         .status(TaskStatus.NEW)
                         .name(this.getNameOrGenerateNew(task))
+                        .scheduledAt(task.getExecutionDate())
                         .build()
         );
     }

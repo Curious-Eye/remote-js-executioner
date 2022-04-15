@@ -9,9 +9,12 @@ import java.util.List;
 
 public interface TaskRepository {
 
-    Mono<TaskEntity> findByName(String name);
+    Mono<TaskEntity> findById(String id);
+    Flux<TaskEntity> findAllById(Iterable<String> ids);
     Mono<TaskEntity> save(TaskEntity task);
+    Flux<TaskEntity> saveAll(Iterable<TaskEntity> tasks);
     Mono<Void> deleteAll();
+    Mono<TaskEntity> findByName(String name);
     Flux<TaskEntity> findAllByStatusIn(List<TaskStatus> statuses);
 
 }

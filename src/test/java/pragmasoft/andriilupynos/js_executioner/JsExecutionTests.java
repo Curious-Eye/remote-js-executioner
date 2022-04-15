@@ -22,6 +22,7 @@ public class JsExecutionTests {
     @BeforeEach
     public void clearDB() {
         taskStore.deleteAll().block();
+        taskExecuteService.stopAll().block();
     }
 
     @Test
@@ -70,7 +71,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void ifJSThrowsAnErrorItShouldBeSaved() {
+    public void ifExecutionThrowsAnErrorItShouldBeSaved() {
         // GIVEN
         String code = "print('Hi');" +
                 "throw 'Some error';";
@@ -92,6 +93,29 @@ public class JsExecutionTests {
         assertEquals(TaskStatus.ERRORED, storedTask.getStatus());
         assertEquals("org.graalvm.polyglot.PolyglotException: Some error", storedTask.getError());
         assertEquals("Hi\n", storedTask.getOutput());
+    }
+
+    @Test
+    public void userShouldBeAbleToStopScriptExecution() throws InterruptedException {
+        // GIVEN - task with infinite loop is executing
+        taskStore.save(
+                Task.builder()
+                        .id("1")
+                        .name("Task 1")
+                        .code("while(true) { }")
+                        .status(TaskStatus.NEW)
+                        .build()
+        ).block();
+        while (taskStore.findByName("Task 1").block().getStatus() != TaskStatus.EXECUTING) {
+            Thread.sleep(1);
+        }
+
+        // WHEN - we stop this task
+        taskExecuteService.stopById("1").block();
+
+        // THEN - task should be stopped
+        var stoppedTask = taskStore.findByName("Task 1").block();
+        assertEquals(TaskStatus.STOPPED, stoppedTask.getStatus());
     }
 
 }

@@ -35,17 +35,20 @@ public class TaskExecuteService {
 
     private final Scheduler scheduler =
             Schedulers.newBoundedElastic(4, 500, TaskExecuteService.class.getName());
-    private final ConcurrentHashMap<String, Disposable> taskIdAndExecutingTask = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ExecutionState> taskIdAndExecutionState = new ConcurrentHashMap<>();
 
     @Scheduled(initialDelay = 5000, fixedRate = 2000)
     public void checkTasksAndExecute() {
         taskStore.findAllByStatusIn(List.of(TaskStatus.EXECUTING, TaskStatus.NEW))
-                .filter(task -> !this.taskIdAndExecutingTask.containsKey(task.getId()))
+                .filter(task -> !taskIdAndExecutionState.containsKey(task.getId()))
                 .filter(task -> task.getScheduledAt() == null || !task.getScheduledAt().after(new Date()))
                 .doOnNext(task ->
-                        this.taskIdAndExecutingTask.put(
+                        taskIdAndExecutionState.put(
                                 task.getId(),
-                                this.scheduler.schedule(() -> this.execute(task).block())
+                                ExecutionState.builder()
+                                        .taskExecution(scheduler.schedule(() -> this.execute(task).block()))
+                                        .output(new StringWriter())
+                                        .build()
                         )
                 )
                 .then()
@@ -61,46 +64,31 @@ public class TaskExecuteService {
         log.debug("Executing task {}", task.getId());
         task.setStatus(TaskStatus.EXECUTING);
         task.setBeginExecDate(new Date());
-        return this.taskStore.save(task)
+        return taskStore.save(task)
                 .flatMap(this::executeCode)
                 .flatMap(executeRes -> {
                     task.setStatus(executeRes.errored ? TaskStatus.ERRORED : TaskStatus.COMPLETED);
                     task.setOutput(executeRes.getOutput());
                     task.setError(executeRes.getError());
                     task.setEndExecDate(new Date());
-                    return this.taskStore.save(task);
+                    return taskStore.save(task);
                 })
                 .then();
     }
 
-    public Mono<Void> stopById(String taskId) {
-        return Mono.fromCallable(() -> {
-            var taskExecution = this.taskIdAndExecutingTask.get(taskId);
-            if (taskExecution != null)
-                taskExecution.dispose();
-            this.taskIdAndExecutingTask.remove(taskId);
-            return null;
-        });
-    }
-
-    private Mono<ExecuteCodeState> executeCode(Task task) {
+    private Mono<ExecuteCodeResult> executeCode(Task task) {
         var scriptOutput = new StringWriter();
-        var engine = GraalJSScriptEngine.create(
-                null,
-                Context.newBuilder("js")
-                        .option("js.ecmascript-version", "2020")
-                        .option("js.script-engine-global-scope-import", "false")
-        );
+        var engine = GraalJSScriptEngine.create(null, Context.newBuilder("js"));
         engine.getContext().setWriter(scriptOutput);
         return Mono.fromCallable(() -> engine.eval(task.getCode()))
                 .then(Mono.fromCallable(() ->
-                        ExecuteCodeState.builder()
+                        ExecuteCodeResult.builder()
                                 .output(scriptOutput.toString())
                                 .build()
                 ))
                 .doOnError(err -> log.error("Error evaluating script {}:\n{}", task.getId(), err))
                 .onErrorResume(err -> Mono.just(
-                        ExecuteCodeState.builder()
+                        ExecuteCodeResult.builder()
                                 .output(scriptOutput.toString())
                                 .error(err.getMessage())
                                 .errored(true)
@@ -109,7 +97,7 @@ public class TaskExecuteService {
                 .timeout(Duration.ofSeconds(20))
                 .doOnError(err -> log.error("Script {} timed-out", task.getId()))
                 .onErrorReturn(TimeoutException.class,
-                        ExecuteCodeState.builder()
+                        ExecuteCodeResult.builder()
                                 .output(scriptOutput.toString())
                                 .error("Script timed-out. Maximum execution duration is 20 seconds")
                                 .errored(true)
@@ -117,13 +105,52 @@ public class TaskExecuteService {
                 );
     }
 
+    public Mono<Void> stopById(String taskId) {
+        return taskStore.findById(taskId)
+                .flatMap(task -> {
+                    stopTaskInternal(task);
+                    return taskStore.save(task);
+                })
+                .then();
+    }
+
+    public Mono<Void> stopAll() {
+        return taskStore.findAllById(taskIdAndExecutionState.keySet())
+                .collectList()
+                .flatMapMany(executingTasks -> {
+                    executingTasks.forEach(this::stopTaskInternal);
+                    return taskStore.saveAll(executingTasks);
+                })
+                .then();
+    }
+
+    private void stopTaskInternal(Task task) {
+        var taskExecutionState = taskIdAndExecutionState.get(task.getId());
+        if (taskExecutionState != null) {
+            taskExecutionState.getTaskExecution().dispose();
+            taskIdAndExecutionState.remove(task.getId());
+            task.setStatus(TaskStatus.STOPPED);
+            task.setEndExecDate(new Date());
+            task.setOutput(taskExecutionState.getOutput().toString());
+        }
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    private static class ExecuteCodeState {
+    private static class ExecuteCodeResult {
         private String output;
         private String error;
         private boolean errored;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class ExecutionState {
+        private Disposable taskExecution;
+        private StringWriter output;
     }
 }
