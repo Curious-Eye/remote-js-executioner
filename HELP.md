@@ -1,7 +1,8 @@
 # Remote JS execution project
 
 ### To run the project
-Run Gradle's bootRun command. Server will be available on the port 8080
+Run Gradle's bootRun command or open project in IntelliJ IDE and run it from there.
+Server will be available on the port 8080.
 
 ### Description
 This project allows for the creation of tasks that execute JavaScript on the server.
