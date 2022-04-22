@@ -9,6 +9,15 @@ This project allows for the creation of tasks that execute JavaScript on the ser
 It provides api for the client to schedule such tasks, get relevant information 
 about their current state and stop them.
 
-Notes: \
-    - only important public methods have comments;\
-    - tests cover core functionality (business cases).
+### API
+
+Root path to get accessible api via HATEOAS is available at:
+- GET localhost:8080/
+
+All api definitions are viewable via Swagger UI at:
+- GET localhost:8080/swagger-ui/index.html
+
+### Notes
+
+Only important public methods have comments.\
+Tests cover core functionality (business cases).
