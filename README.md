@@ -20,4 +20,4 @@ All api definitions are viewable via Swagger UI at:
 ### Notes
 
 Only important public methods have comments.\
-Tests cover core functionality (business cases).
+Tests cover core functionality (use cases).
