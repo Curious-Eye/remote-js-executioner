@@ -26,7 +26,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping
 public class TaskController {
 
     @Autowired private TaskScheduleService taskScheduleService;
@@ -99,7 +99,7 @@ public class TaskController {
      * Stop task's execution
      */
     @PutMapping("/tasks/{id}/stop-execution")
-    public Mono<RepresentationModel> stopTask(@PathVariable String id) {
+    public Mono<RepresentationModel<?>> stopTask(@PathVariable String id) {
         return taskExecuteService.stopById(id)
                 .thenReturn(RepresentationModel.of(
                         null,
