@@ -21,7 +21,7 @@ class SwaggerConfig {
                         new ApiInfoBuilder()
                                 .title("JS executioner API")
                                 .description("API of JS Executioner. By Andrii Lupynos")
-                                .version("1.0")
+                                .version("0.1.0")
                                 .build()
                 );
     }
