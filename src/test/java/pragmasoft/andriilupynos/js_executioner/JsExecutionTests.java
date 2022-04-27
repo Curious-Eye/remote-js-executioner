@@ -21,9 +21,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 public class JsExecutionTests {
 
-    @Autowired private TaskScheduleService taskScheduleService;
-    @Autowired private TaskStore taskStore;
-    @Autowired private TaskExecuteService taskExecuteService;
+    @Autowired
+    private TaskScheduleService taskScheduleService;
+    @Autowired
+    private TaskStore taskStore;
+    @Autowired
+    private TaskExecuteService taskExecuteService;
 
     @BeforeEach
     public void clearDB() {
@@ -128,7 +131,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void userShouldBeAbleToStopScriptExecution() throws InterruptedException {
+    public void userShouldBeAbleToStopScriptExecution() {
         // GIVEN - task with infinite loop is executing
         taskStore.save(
                 Task.builder()
@@ -143,7 +146,12 @@ public class JsExecutionTests {
                 .until(() -> taskStore.findById("1").block().getStatus() == TaskStatus.EXECUTING);
 
         // WHEN - we stop this task
-        taskExecuteService.stopById("1").block();
+        taskExecuteService.changeExecution(
+                "1",
+                TaskExecuteService.ChangeExecutionModel.builder()
+                        .action(TaskExecuteService.ChangeExecutionAction.STOP)
+                        .build()
+        ).block();
 
         // THEN - task should be stopped
         Awaitility.await()

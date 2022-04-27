@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
+import pragmasoft.andriilupynos.js_executioner.exception.IllegalArgumentException;
+import pragmasoft.andriilupynos.js_executioner.exception.TaskNotFoundException;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -138,20 +140,30 @@ public class TaskExecuteService {
     }
 
     /**
-     * Stop task by id. This method does nothing if task with such id is not being executed
+     * Stop task by id. This method does nothing if task with such id is not being executed.
+     * Returns Mono.error(TaskNotFoundException) if task with such id does not exist
      *
      * @param taskId Id of the task
      * @return Mono signaling when operation completes
      */
-    public Mono<Void> stopById(String taskId) {
+    public Mono<Void> changeExecution(String taskId, ChangeExecutionModel model) {
         log.debug("Stopping task {}", taskId);
-        return Mono.fromCallable(() -> {
-            var taskExecutionState = taskIdAndExecution.get(taskId);
-            if (taskExecutionState != null) {
-                taskExecutionState.getExecution().dispose();
-            }
-            return null;
-        });
+        if (model.getAction() != ChangeExecutionAction.STOP) {
+            return Mono.error(
+                    new IllegalArgumentException(
+                            "Cannot change execution: Unexpected action passed - " + model.getAction()
+                    )
+            );
+        }
+        return taskStore.findById(taskId)
+                .switchIfEmpty(Mono.error(new TaskNotFoundException("Task with such id does not exist")))
+                .mapNotNull(unused -> {
+                    var taskExecutionState = taskIdAndExecution.get(taskId);
+                    if (taskExecutionState != null) {
+                        taskExecutionState.getExecution().dispose();
+                    }
+                    return null;
+                });
     }
 
     /**
@@ -189,6 +201,18 @@ public class TaskExecuteService {
     private static class ExecutionContext {
         private StringWriter currentOutputWriter;
         private Disposable execution;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ChangeExecutionModel {
+        private ChangeExecutionAction action;
+    }
+
+    public enum ChangeExecutionAction {
+        STOP
     }
 
 }

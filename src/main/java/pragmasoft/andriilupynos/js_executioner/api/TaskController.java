@@ -8,10 +8,7 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import pragmasoft.andriilupynos.js_executioner.api.dto.TaskCreateRespDto;
-import pragmasoft.andriilupynos.js_executioner.api.dto.TaskCreateRqDto;
-import pragmasoft.andriilupynos.js_executioner.api.dto.TaskDto;
-import pragmasoft.andriilupynos.js_executioner.api.dto.TaskStatusDto;
+import pragmasoft.andriilupynos.js_executioner.api.dto.*;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
@@ -36,8 +33,10 @@ public class TaskController {
     @Autowired private TaskStore taskStore;
 
     @Operation(
-            summary = "Create a task for future execution. " +
-                    "It will be executed at the specified time or as soon as possible"
+            operationId = "createTask",
+            summary = "Create a task for future execution.",
+            description = "Create a task for future execution. " +
+                    "It will be executed at the specified time or as soon as possible."
     )
     @PostMapping("/tasks")
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -61,17 +60,21 @@ public class TaskController {
                 .onErrorResume(err -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, err.getMessage())));
     }
 
-    @Operation(summary = "Find a task by id.")
+    @Operation(
+            operationId = "findTaskById",
+            summary = "Find a task by id."
+    )
     @GetMapping("/tasks/{id}")
     public Mono<EntityModel<TaskDto>> findTaskById(@PathVariable String id) {
         return taskQueryService.getTaskWithCurrentOutputById(id)
                 .map(this::toTaskDto)
-                .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
+                .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)));
     }
 
     @Operation(
-            summary = "Returns all tasks. " +
+            operationId = "findTasks",
+            summary = "Returns all tasks.",
+            description = "Returns all tasks. " +
                     "Allows to filter returned tasks by status and to order by creation date."
     )
     @GetMapping("/tasks")
@@ -85,7 +88,9 @@ public class TaskController {
     }
 
     @Operation(
-            summary = "Find a task by name. " +
+            operationId = "findTaskByName",
+            summary = "Find a task by name.",
+            description = "Find a task by name. " +
                     "Returns first found task or 404 if nothing is found."
     )
     @GetMapping("/tasks/actions/find-by-name")
@@ -97,17 +102,30 @@ public class TaskController {
     }
 
     @Operation(
-            summary = "Stop execution of a task. " +
+            operationId = "changeTaskExecution",
+            summary = "Change execution of a task. ",
+            description = "Change execution of a task. " +
+                    "Currently allows only to stop the task. " +
                     "Does nothing if task with such id does not exist or is not being executed."
     )
-    @PutMapping("/tasks/{id}/stop-execution")
-    public Mono<RepresentationModel<?>> stopTask(@PathVariable String id) {
-        return taskExecuteService.stopById(id)
+    @PutMapping("/tasks/{id}/execution")
+    public Mono<RepresentationModel<?>> changeTaskExecution(
+            @PathVariable String id,
+            @RequestBody TaskChangeExecutionRqDto rq
+    ) {
+        return taskExecuteService.changeExecution(
+                        id,
+                        TaskExecuteService.ChangeExecutionModel.builder()
+                                .action(TaskExecuteService.ChangeExecutionAction.valueOf(rq.getAction().name()))
+                                .build()
+                )
                 .thenReturn(RepresentationModel.of(
                         null,
                         List.of(
                                 linkTo(methodOn(TaskController.class).findTasks(null, null))
-                                        .withRel("tasks")
+                                        .withRel("tasks"),
+                                linkTo(methodOn(TaskController.class).findTaskById(id))
+                                        .withRel("task")
                         )
                 ));
     }
@@ -131,8 +149,20 @@ public class TaskController {
         var links = new ArrayList<Link>();
         links.add(linkTo(methodOn(TaskController.class).findTaskById(taskDto.getId())).withSelfRel());
         links.add(linkTo(methodOn(TaskController.class).findTasks(null, null)).withRel("tasks"));
-        if (taskDto.getStatus() == TaskStatusDto.EXECUTING)
-            links.add(linkTo(methodOn(TaskController.class).stopTask(taskDto.getId())).withRel("stop-task"));
+        if (taskDto.getStatus() == TaskStatusDto.EXECUTING) {
+            links.add(
+                    linkTo(
+                            methodOn(TaskController.class)
+                                    .changeTaskExecution(
+                                            taskDto.getId(),
+                                            TaskChangeExecutionRqDto.builder()
+                                                    .action(TaskChangeExecutionRqDto.ChangeExecutionAction.STOP)
+                                                    .build()
+                                    )
+                    )
+                            .withRel("task-execution")
+            );
+        }
         return links;
     }
 

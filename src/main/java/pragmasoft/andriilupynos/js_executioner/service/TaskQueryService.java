@@ -6,6 +6,7 @@ import pragmasoft.andriilupynos.js_executioner.api.dto.TaskStatusDto;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
+import pragmasoft.andriilupynos.js_executioner.exception.TaskNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -19,7 +20,9 @@ public class TaskQueryService {
     @Autowired private TaskExecuteService taskExecuteService;
 
     /**
-     * Returned information about the task, including current script output
+     * Returns information about the task, including current script output,
+     * or Mono.error(TaskNotFoundException) if task with such id does not exist
+     *
      * @param id task id
      * @return Mono with task information
      */
@@ -29,7 +32,8 @@ public class TaskQueryService {
                     if (task.getStatus() == TaskStatus.EXECUTING)
                         task.setOutput(taskExecuteService.getCurrentExecutionOutput(task.getId()));
                     return task;
-                });
+                })
+                .switchIfEmpty(Mono.error(new TaskNotFoundException("Task with such id does not exist")));
     }
 
     /**

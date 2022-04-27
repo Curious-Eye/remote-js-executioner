@@ -1,9 +1,11 @@
 package pragmasoft.andriilupynos.js_executioner.exception;
 
-public class InvalidJSProvidedException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class InvalidJSProvidedException extends BaseException {
 
     public InvalidJSProvidedException(String message) {
-        super(message);
+        super("invalid_js_provided_exception", HttpStatus.BAD_REQUEST, message);
     }
 
 }
