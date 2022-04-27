@@ -16,7 +16,7 @@ public class HateoasRootController {
     public RepresentationModel<?> getEntitiesLinks() {
         return new RepresentationModel<>(
             List.of(
-                    linkTo(methodOn(TaskController.class).findTasks(null, null))
+                    linkTo(methodOn(TaskController.class).findTasks(null, null, null))
                             .withRel("tasks")
             )
         );

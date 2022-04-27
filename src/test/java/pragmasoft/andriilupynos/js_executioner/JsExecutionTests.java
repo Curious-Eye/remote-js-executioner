@@ -48,7 +48,7 @@ public class JsExecutionTests {
         assertEquals(code, res.getCode());
         assertEquals(TaskStatus.NEW, res.getStatus());
 
-        var storedTask = taskStore.findByName(res.getName()).block();
+        var storedTask = taskStore.findById(res.getId()).block();
         assertNotNull(storedTask);
         assertEquals(res.getName(), storedTask.getName());
         assertEquals(code, storedTask.getCode());
@@ -96,7 +96,7 @@ public class JsExecutionTests {
         ).block();
 
         // THEN
-        var storedTask = taskStore.findByName("Task 1").block();
+        var storedTask = taskStore.findById("1").block();
         assertNotNull(storedTask);
 
         assertEquals(TaskStatus.COMPLETED, storedTask.getStatus());
@@ -122,7 +122,7 @@ public class JsExecutionTests {
         ).block();
 
         // THEN
-        var storedTask = taskStore.findByName("Task 1").block();
+        var storedTask = taskStore.findById("1").block();
         assertNotNull(storedTask);
 
         assertEquals(TaskStatus.ERRORED, storedTask.getStatus());

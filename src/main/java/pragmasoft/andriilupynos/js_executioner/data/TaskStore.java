@@ -9,20 +9,26 @@ import pragmasoft.andriilupynos.js_executioner.data.repository.TaskRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TaskStore {
 
     @Autowired private TaskRepository taskRepository;
 
-    public Mono<Task> findByName(String name) {
-        return taskRepository.findByName(name)
+    public Mono<Task> save(Task task) {
+        return taskRepository.save(convertToTaskEntity(task))
                 .map(TaskStore::convertToTask);
     }
 
-    public Mono<Task> save(Task task) {
-        return taskRepository.save(convertToTaskEntity(task))
+    public Flux<Task> saveAll(Collection<Task> task) {
+        return taskRepository.saveAll(
+                        task.stream()
+                                .map(TaskStore::convertToTaskEntity)
+                                .collect(Collectors.toList())
+                )
                 .map(TaskStore::convertToTask);
     }
 

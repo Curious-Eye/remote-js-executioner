@@ -8,6 +8,7 @@ import pragmasoft.andriilupynos.js_executioner.data.repository.TaskRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,13 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ConcurrentInMemoryTaskRepository implements TaskRepository {
 
     private final ConcurrentHashMap<String, TaskEntity> taskStore = new ConcurrentHashMap<>();
-
-    @Override
-    public Mono<TaskEntity> findByName(String name) {
-        return Flux.fromStream(taskStore.values().stream())
-                .filter(it -> it.getName().equals(name))
-                .next();
-    }
 
     @Override
     public Flux<TaskEntity> findAllByStatusIn(List<TaskStatus> statuses) {
@@ -39,6 +33,12 @@ public class ConcurrentInMemoryTaskRepository implements TaskRepository {
             taskStore.put(task.getId(), task);
             return task;
         });
+    }
+
+    @Override
+    public Flux<TaskEntity> saveAll(Collection<TaskEntity> task) {
+        return Flux.fromIterable(task)
+                .flatMap(this::save);
     }
 
     @Override

@@ -1,8 +1,11 @@
 package pragmasoft.andriilupynos.js_executioner.service;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import pragmasoft.andriilupynos.js_executioner.api.dto.TaskStatusDto;
 import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
@@ -11,7 +14,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Comparator;
-import java.util.List;
 
 @Service
 public class TaskQueryService {
@@ -44,18 +46,18 @@ public class TaskQueryService {
      *
      * Note: ordering should be moved to DB level, but for simplicity I left it here.
      *
-     * @param status status of the tasks to return
-     * @param newFirst whether to sort return tasks by creation date
+     * @param filter filter to apply to returned tasks, includes sorting
      * @return tasks matching given parameters
      */
-    public Flux<Task> getTasksMatching(TaskStatusDto status, Boolean newFirst) {
-        var findFlux =
-                status == null ?
-                        taskStore.findAll() :
-                        taskStore.findAllByStatusIn(List.of(TaskStatus.valueOf(status.name())));
-        if (newFirst != null) {
+    public Flux<Task> search(TaskSearchModel filter) {
+        var findFlux = taskStore.findAll();
+        if (filter.status != null)
+            findFlux = findFlux.filter(task -> task.getStatus().equals(filter.status));
+        if (filter.name != null)
+            findFlux = findFlux.filter(task -> task.getName().equals(filter.name));
+        if (filter.newFirst != null) {
             Comparator<Task> comparator;
-            if (newFirst)
+            if (filter.newFirst)
                 comparator = Comparator.comparing(Task::getCreatedDate).reversed();
             else
                 comparator = Comparator.comparing(Task::getCreatedDate);
@@ -63,4 +65,15 @@ public class TaskQueryService {
         }
         return findFlux;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TaskSearchModel {
+        private String name;
+        private TaskStatus status;
+        private Boolean newFirst;
+    }
+
 }

@@ -9,8 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import pragmasoft.andriilupynos.js_executioner.api.dto.*;
-import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
+import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
 import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskQueryService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
@@ -30,7 +30,6 @@ public class TaskController {
     @Autowired private TaskScheduleService taskScheduleService;
     @Autowired private TaskExecuteService taskExecuteService;
     @Autowired private TaskQueryService taskQueryService;
-    @Autowired private TaskStore taskStore;
 
     @Operation(
             operationId = "createTask",
@@ -73,32 +72,25 @@ public class TaskController {
 
     @Operation(
             operationId = "findTasks",
-            summary = "Returns all tasks.",
-            description = "Returns all tasks. " +
-                    "Allows to filter returned tasks by status and to order by creation date."
+            summary = "Returns tasks matching provided parameters.",
+            description = "Returns tasks matching provided parameters. " +
+                    "Allows to filter returned tasks by status, name and to order by creation date."
     )
     @GetMapping("/tasks")
     public Flux<EntityModel<TaskDto>> findTasks(
+            @RequestParam(required = false) String name,
             @RequestParam(required = false) TaskStatusDto status,
             @RequestParam(required = false) Boolean newFirst
     ) {
-        return taskQueryService.getTasksMatching(status, newFirst)
+        var model =
+                TaskQueryService.TaskSearchModel.builder()
+                        .newFirst(newFirst)
+                        .name(name);
+        if (status != null)
+            model.status(TaskStatus.valueOf(status.name()));
+        return taskQueryService.search(model.build())
                 .map(this::toTaskDto)
                 .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)));
-    }
-
-    @Operation(
-            operationId = "findTaskByName",
-            summary = "Find a task by name.",
-            description = "Find a task by name. " +
-                    "Returns first found task or 404 if nothing is found."
-    )
-    @GetMapping("/tasks/actions/find-by-name")
-    public Mono<EntityModel<TaskDto>> findTaskByName(@RequestParam String name) {
-        return taskStore.findByName(name)
-                .map(this::toTaskDto)
-                .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
     @Operation(
@@ -122,7 +114,7 @@ public class TaskController {
                 .thenReturn(RepresentationModel.of(
                         null,
                         List.of(
-                                linkTo(methodOn(TaskController.class).findTasks(null, null))
+                                linkTo(methodOn(TaskController.class).findTasks(null, null, null))
                                         .withRel("tasks"),
                                 linkTo(methodOn(TaskController.class).findTaskById(id))
                                         .withRel("task")
@@ -148,7 +140,7 @@ public class TaskController {
     private List<Link> getTaskHateoasLinks(TaskDto taskDto) {
         var links = new ArrayList<Link>();
         links.add(linkTo(methodOn(TaskController.class).findTaskById(taskDto.getId())).withSelfRel());
-        links.add(linkTo(methodOn(TaskController.class).findTasks(null, null)).withRel("tasks"));
+        links.add(linkTo(methodOn(TaskController.class).findTasks(null, null, null)).withRel("tasks"));
         if (taskDto.getStatus() == TaskStatusDto.EXECUTING) {
             links.add(
                     linkTo(
