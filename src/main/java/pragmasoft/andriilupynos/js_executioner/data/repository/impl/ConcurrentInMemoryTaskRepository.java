@@ -42,6 +42,14 @@ public class ConcurrentInMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
+    public Mono<Void> deleteById(String id) {
+        return Mono.fromCallable(() -> {
+            taskStore.remove(id);
+            return null;
+        });
+    }
+
+    @Override
     public Mono<Void> deleteAll() {
         return Mono.fromCallable(() -> {
             taskStore.clear();

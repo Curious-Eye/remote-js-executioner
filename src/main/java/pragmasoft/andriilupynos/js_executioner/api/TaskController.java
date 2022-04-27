@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import pragmasoft.andriilupynos.js_executioner.api.dto.*;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
+import pragmasoft.andriilupynos.js_executioner.service.TaskDeleteService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskQueryService;
 import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
@@ -30,6 +31,7 @@ public class TaskController {
     @Autowired private TaskScheduleService taskScheduleService;
     @Autowired private TaskExecuteService taskExecuteService;
     @Autowired private TaskQueryService taskQueryService;
+    @Autowired private TaskDeleteService taskDeleteService;
 
     @Operation(
             operationId = "createTask",
@@ -68,6 +70,22 @@ public class TaskController {
         return taskQueryService.getTaskWithCurrentOutputById(id)
                 .map(this::toTaskDto)
                 .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)));
+    }
+
+    @Operation(
+            operationId = "deleteTaskById",
+            summary = "Delete a task by id.",
+            description = "Deletes a task, stopping current execution if it is being performed."
+    )
+    @DeleteMapping("/tasks/{id}")
+    public Mono<RepresentationModel<?>> deleteTaskById(@PathVariable String id) {
+        return taskDeleteService.deleteById(id)
+                .thenReturn(
+                        new RepresentationModel<>(
+                                linkTo(methodOn(TaskController.class).findTasks(null, null, null))
+                                        .withRel("tasks")
+                        )
+                );
     }
 
     @Operation(

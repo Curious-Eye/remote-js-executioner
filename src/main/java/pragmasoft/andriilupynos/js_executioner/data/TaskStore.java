@@ -32,6 +32,10 @@ public class TaskStore {
                 .map(TaskStore::convertToTask);
     }
 
+    public Mono<Void> deleteById(String id) {
+        return taskRepository.deleteById(id);
+    }
+
     public Mono<Void> deleteAll() {
         return taskRepository.deleteAll();
     }

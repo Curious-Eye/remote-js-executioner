@@ -14,6 +14,7 @@ public interface TaskRepository {
     Flux<TaskEntity> findAll();
     Mono<TaskEntity> save(TaskEntity task);
     Flux<TaskEntity> saveAll(Collection<TaskEntity> task);
+    Mono<Void> deleteById(String id);
     Mono<Void> deleteAll();
     Flux<TaskEntity> findAllByStatusIn(List<TaskStatus> statuses);
 
