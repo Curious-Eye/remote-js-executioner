@@ -1,6 +1,6 @@
 package pragmasoft.andriilupynos.js_executioner.api;
 
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
@@ -35,9 +35,8 @@ public class TaskController {
     @Autowired private TaskQueryService taskQueryService;
     @Autowired private TaskStore taskStore;
 
-    @ApiOperation(
-            value = "createTask",
-            notes = "Create a task for future execution. " +
+    @Operation(
+            summary = "Create a task for future execution. " +
                     "It will be executed at the specified time or as soon as possible"
     )
     @PostMapping("/tasks")
@@ -62,7 +61,7 @@ public class TaskController {
                 .onErrorResume(err -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, err.getMessage())));
     }
 
-    @ApiOperation(value = "findTaskById", notes = "Find a task by id.")
+    @Operation(summary = "Find a task by id.")
     @GetMapping("/tasks/{id}")
     public Mono<EntityModel<TaskDto>> findTaskById(@PathVariable String id) {
         return taskQueryService.getTaskWithCurrentOutputById(id)
@@ -71,9 +70,8 @@ public class TaskController {
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
-    @ApiOperation(
-            value = "findTasks",
-            notes = "Returns all tasks. " +
+    @Operation(
+            summary = "Returns all tasks. " +
                     "Allows to filter returned tasks by status and to order by creation date."
     )
     @GetMapping("/tasks")
@@ -86,9 +84,8 @@ public class TaskController {
                 .map(taskDto -> EntityModel.of(taskDto, getTaskHateoasLinks(taskDto)));
     }
 
-    @ApiOperation(
-            value = "findTaskByName",
-            notes = "Find a task by name. " +
+    @Operation(
+            summary = "Find a task by name. " +
                     "Returns first found task or 404 if nothing is found."
     )
     @GetMapping("/tasks/actions/find-by-name")
@@ -99,9 +96,8 @@ public class TaskController {
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
-    @ApiOperation(
-            value = "stopTask",
-            notes = "Stop execution of a task. " +
+    @Operation(
+            summary = "Stop execution of a task. " +
                     "Does nothing if task with such id does not exist or is not being executed."
     )
     @PutMapping("/tasks/{id}/stop-execution")
