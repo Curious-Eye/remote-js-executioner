@@ -7,7 +7,6 @@ import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import pragmasoft.andriilupynos.js_executioner.api.dto.*;
 import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
 import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
@@ -57,8 +56,7 @@ public class TaskController {
                                     .build(),
                             getTaskHateoasLinks(taskDto)
                     );
-                })
-                .onErrorResume(err -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, err.getMessage())));
+                });
     }
 
     @Operation(
