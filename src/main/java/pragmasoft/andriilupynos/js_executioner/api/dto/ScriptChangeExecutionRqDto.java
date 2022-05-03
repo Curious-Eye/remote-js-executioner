@@ -9,6 +9,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskCreateRespDto {
-    private TaskDto task;
+public class ScriptChangeExecutionRqDto {
+
+    private ChangeExecutionAction action;
+
+    public enum ChangeExecutionAction {
+        STOP
+    }
 }

@@ -12,7 +12,7 @@ import java.util.Date;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskCreateRqDto {
+public class ScriptCreateRqDto {
     private String code;
     private String name;
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)

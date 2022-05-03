@@ -5,12 +5,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
-import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
-import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
+import pragmasoft.andriilupynos.js_executioner.data.ScriptStore;
+import pragmasoft.andriilupynos.js_executioner.data.domain.Script;
+import pragmasoft.andriilupynos.js_executioner.data.domain.ScriptStatus;
 import pragmasoft.andriilupynos.js_executioner.exception.InvalidJSProvidedException;
-import pragmasoft.andriilupynos.js_executioner.service.TaskExecuteService;
-import pragmasoft.andriilupynos.js_executioner.service.TaskScheduleService;
+import pragmasoft.andriilupynos.js_executioner.service.ScriptExecuteService;
+import pragmasoft.andriilupynos.js_executioner.service.ScriptScheduleService;
 import reactor.test.StepVerifier;
 
 import java.io.StringWriter;
@@ -22,16 +22,16 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JsExecutionTests {
 
     @Autowired
-    private TaskScheduleService taskScheduleService;
+    private ScriptScheduleService scriptScheduleService;
     @Autowired
-    private TaskStore taskStore;
+    private ScriptStore scriptStore;
     @Autowired
-    private TaskExecuteService taskExecuteService;
+    private ScriptExecuteService scriptExecuteService;
 
     @BeforeEach
     public void clearDB() {
-        taskStore.deleteAll().block();
-        taskExecuteService.stopAll().block();
+        scriptStore.deleteAll().block();
+        scriptExecuteService.stopAll().block();
     }
 
     @Test
@@ -40,19 +40,19 @@ public class JsExecutionTests {
         String code = "console.log(\"Hi\")";
 
         // WHEN - Schedule code execution
-        var res = taskScheduleService.schedule(TaskScheduleService.TaskScheduleModel.builder().code(code).build()).block();
+        var res = scriptScheduleService.schedule(ScriptScheduleService.ScriptScheduleModel.builder().code(code).build()).block();
 
-        // THEN - Task should be created
+        // THEN - Script should be created
         assertNotNull(res);
         assertNotNull(res.getName());
         assertEquals(code, res.getCode());
-        assertEquals(TaskStatus.NEW, res.getStatus());
+        assertEquals(ScriptStatus.NEW, res.getStatus());
 
-        var storedTask = taskStore.findById(res.getId()).block();
-        assertNotNull(storedTask);
-        assertEquals(res.getName(), storedTask.getName());
-        assertEquals(code, storedTask.getCode());
-        assertEquals(TaskStatus.NEW, storedTask.getStatus());
+        var storedScript = scriptStore.findById(res.getId()).block();
+        assertNotNull(storedScript);
+        assertEquals(res.getName(), storedScript.getName());
+        assertEquals(code, storedScript.getCode());
+        assertEquals(ScriptStatus.NEW, storedScript.getStatus());
     }
 
     @Test
@@ -61,9 +61,9 @@ public class JsExecutionTests {
         String code = "some_var..call()";
 
         // WHEN - Schedule invalid code execution
-        // THEN - Task should not be created
+        // THEN - Script should not be created
         StepVerifier.create(
-                        taskScheduleService.schedule(TaskScheduleService.TaskScheduleModel.builder().code(code).build())
+                        scriptScheduleService.schedule(ScriptScheduleService.ScriptScheduleModel.builder().code(code).build())
                 )
                 .verifyErrorMatches(err -> {
                     assertInstanceOf(InvalidJSProvidedException.class, err);
@@ -76,7 +76,7 @@ public class JsExecutionTests {
                     return true;
                 });
 
-        assertEquals(0, taskStore.findAll().collectList().block().size());
+        assertEquals(0, scriptStore.findAll().collectList().block().size());
     }
 
     @Test
@@ -85,23 +85,23 @@ public class JsExecutionTests {
         String code = "print('Hi');";
 
         // WHEN
-        taskExecuteService.execute(
-                Task.builder()
+        scriptExecuteService.execute(
+                Script.builder()
                         .id("1")
-                        .name("Task 1")
+                        .name("Script 1")
                         .code(code)
-                        .status(TaskStatus.NEW)
+                        .status(ScriptStatus.NEW)
                         .build(),
                 new StringWriter()
         ).block();
 
         // THEN
-        var storedTask = taskStore.findById("1").block();
-        assertNotNull(storedTask);
+        var storedScript = scriptStore.findById("1").block();
+        assertNotNull(storedScript);
 
-        assertEquals(TaskStatus.COMPLETED, storedTask.getStatus());
-        assertEquals("Hi\n", storedTask.getOutput());
-        assertNull(storedTask.getError());
+        assertEquals(ScriptStatus.COMPLETED, storedScript.getStatus());
+        assertEquals("Hi\n", storedScript.getOutput());
+        assertNull(storedScript.getError());
     }
 
     @Test
@@ -111,54 +111,54 @@ public class JsExecutionTests {
                 "some_undefined_var.call()";
 
         // WHEN
-        taskExecuteService.execute(
-                Task.builder()
+        scriptExecuteService.execute(
+                Script.builder()
                         .id("1")
-                        .name("Task 1")
+                        .name("Script 1")
                         .code(code)
-                        .status(TaskStatus.NEW)
+                        .status(ScriptStatus.NEW)
                         .build(),
                 new StringWriter()
         ).block();
 
         // THEN
-        var storedTask = taskStore.findById("1").block();
-        assertNotNull(storedTask);
+        var storedScript = scriptStore.findById("1").block();
+        assertNotNull(storedScript);
 
-        assertEquals(TaskStatus.ERRORED, storedTask.getStatus());
-        assertEquals("ReferenceError: some_undefined_var is not defined", storedTask.getError());
-        assertEquals("Hi\n", storedTask.getOutput());
+        assertEquals(ScriptStatus.ERRORED, storedScript.getStatus());
+        assertEquals("ReferenceError: some_undefined_var is not defined", storedScript.getError());
+        assertEquals("Hi\n", storedScript.getOutput());
     }
 
     @Test
     public void userShouldBeAbleToStopScriptExecution() {
-        // GIVEN - task with infinite loop is executing
-        taskStore.save(
-                Task.builder()
+        // GIVEN - script with infinite loop is executing
+        scriptStore.save(
+                Script.builder()
                         .id("1")
-                        .name("Task 1")
+                        .name("Script 1")
                         .code("while(true) { }")
-                        .status(TaskStatus.NEW)
+                        .status(ScriptStatus.NEW)
                         .build()
         ).block();
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
-                .until(() -> taskStore.findById("1").block().getStatus() == TaskStatus.EXECUTING);
+                .until(() -> scriptStore.findById("1").block().getStatus() == ScriptStatus.EXECUTING);
 
-        // WHEN - we stop this task
-        taskExecuteService.changeExecution(
+        // WHEN - we stop this script
+        scriptExecuteService.changeExecution(
                 "1",
-                TaskExecuteService.ChangeExecutionModel.builder()
-                        .action(TaskExecuteService.ChangeExecutionAction.STOP)
+                ScriptExecuteService.ChangeExecutionModel.builder()
+                        .action(ScriptExecuteService.ChangeExecutionAction.STOP)
                         .build()
         ).block();
 
-        // THEN - task should be stopped
+        // THEN - script should be stopped
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
                 .untilAsserted(() -> {
-                    var stoppedTask = taskStore.findById("1").block();
-                    assertEquals(TaskStatus.STOPPED, stoppedTask.getStatus());
+                    var stoppedScript = scriptStore.findById("1").block();
+                    assertEquals(ScriptStatus.STOPPED, stoppedScript.getStatus());
                 });
     }
 

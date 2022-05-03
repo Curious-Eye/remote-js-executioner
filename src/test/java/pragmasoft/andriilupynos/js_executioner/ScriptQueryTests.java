@@ -4,10 +4,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.data.TaskStore;
-import pragmasoft.andriilupynos.js_executioner.data.domain.Task;
-import pragmasoft.andriilupynos.js_executioner.data.domain.TaskStatus;
-import pragmasoft.andriilupynos.js_executioner.service.TaskQueryService;
+import pragmasoft.andriilupynos.js_executioner.data.ScriptStore;
+import pragmasoft.andriilupynos.js_executioner.data.domain.Script;
+import pragmasoft.andriilupynos.js_executioner.data.domain.ScriptStatus;
+import pragmasoft.andriilupynos.js_executioner.service.ScriptQueryService;
 
 import java.util.Date;
 import java.util.List;
@@ -15,92 +15,92 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
-public class TaskQueryTests {
+public class ScriptQueryTests {
 
-    @Autowired private TaskStore taskStore;
-    @Autowired private TaskQueryService taskQueryService;
+    @Autowired private ScriptStore scriptStore;
+    @Autowired private ScriptQueryService scriptQueryService;
 
     @BeforeEach
     public void clearDB() {
-        taskStore.deleteAll().block();
+        scriptStore.deleteAll().block();
     }
 
     @Test
-    public void userShouldBeAbleToSearchTasksByName() {
+    public void userShouldBeAbleToSearchScriptsByName() {
         // GIVEN
-        taskStore.saveAll(
+        scriptStore.saveAll(
                 List.of(
-                        Task.builder()
+                        Script.builder()
                                 .id("1")
-                                .name("Query data task")
-                                .status(TaskStatus.STOPPED)
+                                .name("Query data script")
+                                .status(ScriptStatus.STOPPED)
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("2")
-                                .name("Input data task")
-                                .status(TaskStatus.NEW)
+                                .name("Input data script")
+                                .status(ScriptStatus.NEW)
                                 .build()
                 )
         ).collectList().block();
 
         // WHEN
-        var res = taskQueryService.search(
-                TaskQueryService.TaskSearchModel.builder().name("Input data task").build()
+        var res = scriptQueryService.search(
+                ScriptQueryService.ScriptSearchModel.builder().name("Input data script").build()
         ).collectList().block();
 
         // THEN
         assertEquals(1, res.size());
-        var foundTask = res.get(0);
-        assertEquals("2", foundTask.getId());
-        assertEquals("Input data task", foundTask.getName());
-        assertEquals(TaskStatus.NEW, foundTask.getStatus());
+        var foundScript = res.get(0);
+        assertEquals("2", foundScript.getId());
+        assertEquals("Input data script", foundScript.getName());
+        assertEquals(ScriptStatus.NEW, foundScript.getStatus());
     }
 
     @Test
-    public void userShouldBeAbleToSearchTasksByStatus() {
+    public void userShouldBeAbleToSearchScriptsByStatus() {
         // GIVEN
-        taskStore.saveAll(
+        scriptStore.saveAll(
                 List.of(
-                        Task.builder()
+                        Script.builder()
                                 .id("1")
-                                .name("Task 1")
-                                .status(TaskStatus.STOPPED)
+                                .name("Script 1")
+                                .status(ScriptStatus.STOPPED)
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("2")
-                                .name("Task 2")
-                                .status(TaskStatus.NEW)
+                                .name("Script 2")
+                                .status(ScriptStatus.NEW)
                                 .build()
                 )
         ).collectList().block();
 
         // WHEN
-        var res = taskQueryService.search(
-                TaskQueryService.TaskSearchModel.builder().status(TaskStatus.STOPPED).build()
+        var res = scriptQueryService.search(
+                ScriptQueryService.ScriptSearchModel.builder().status(ScriptStatus.STOPPED).build()
         ).collectList().block();
 
         // THEN
         assertEquals(1, res.size());
-        var foundTask = res.get(0);
-        assertEquals("1", foundTask.getId());
-        assertEquals("Task 1", foundTask.getName());
-        assertEquals(TaskStatus.STOPPED, foundTask.getStatus());
+        var foundScript = res.get(0);
+        assertEquals("1", foundScript.getId());
+        assertEquals("Script 1", foundScript.getName());
+        assertEquals(ScriptStatus.STOPPED, foundScript.getStatus());
     }
 
     @Test
-    public void userShouldBeAbleToSearchTasksWithOrderByCreationDate() {
+    public void userShouldBeAbleToSearchScriptsWithOrderByCreationDate() {
         // GIVEN
-        taskStore.saveAll(
+        scriptStore.saveAll(
                 List.of(
-                        Task.builder()
+                        Script.builder()
                                 .id("1")
                                 .createdDate(new Date())
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("2")
                                 .createdDate(Date.from(new Date().toInstant().plusMillis(100)))
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("3")
                                 .createdDate(Date.from(new Date().toInstant().plusMillis(200)))
                                 .build()
@@ -108,8 +108,8 @@ public class TaskQueryTests {
         ).collectList().block();
 
         // WHEN
-        var res = taskQueryService.search(
-                TaskQueryService.TaskSearchModel.builder().newFirst(false).build()
+        var res = scriptQueryService.search(
+                ScriptQueryService.ScriptSearchModel.builder().newFirst(false).build()
         ).collectList().block();
 
         // THEN
@@ -119,8 +119,8 @@ public class TaskQueryTests {
         assertEquals("3", res.get(2).getId());
 
         // WHEN
-        res = taskQueryService.search(
-                TaskQueryService.TaskSearchModel.builder().newFirst(true).build()
+        res = scriptQueryService.search(
+                ScriptQueryService.ScriptSearchModel.builder().newFirst(true).build()
         ).collectList().block();
 
         // THEN
@@ -131,41 +131,41 @@ public class TaskQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToSearchTasksWithComplexFilter() {
+    public void userShouldBeAbleToSearchScriptsWithComplexFilter() {
         // GIVEN
-        taskStore.saveAll(
+        scriptStore.saveAll(
                 List.of(
-                        Task.builder()
+                        Script.builder()
                                 .id("0")
                                 .name("Test name")
-                                .status(TaskStatus.EXECUTING)
+                                .status(ScriptStatus.EXECUTING)
                                 .createdDate(new Date())
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("1")
                                 .name("Test name")
-                                .status(TaskStatus.NEW)
+                                .status(ScriptStatus.NEW)
                                 .createdDate(Date.from(new Date().toInstant().plusMillis(100)))
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("2")
                                 .name("Test name")
-                                .status(TaskStatus.NEW)
+                                .status(ScriptStatus.NEW)
                                 .createdDate(Date.from(new Date().toInstant().plusMillis(200)))
                                 .build(),
-                        Task.builder()
+                        Script.builder()
                                 .id("3")
-                                .name("Stopped task")
-                                .status(TaskStatus.STOPPED)
+                                .name("Stopped script")
+                                .status(ScriptStatus.STOPPED)
                                 .createdDate(Date.from(new Date().toInstant().plusMillis(300)))
                                 .build()
                 )
         ).collectList().block();
 
         // WHEN
-        var res = taskQueryService.search(
-                TaskQueryService.TaskSearchModel.builder()
-                        .status(TaskStatus.NEW)
+        var res = scriptQueryService.search(
+                ScriptQueryService.ScriptSearchModel.builder()
+                        .status(ScriptStatus.NEW)
                         .name("Test name")
                         .newFirst(true)
                         .build()

@@ -1,4 +1,4 @@
-package pragmasoft.andriilupynos.js_executioner.data.domain;
+package pragmasoft.andriilupynos.js_executioner.api.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,19 +11,15 @@ import java.util.Date;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskEntity {
-
+public class ScriptDto {
     private String id;
     private String name;
     private String code;
     private String output;
     private String error;
-    private TaskStatus status;
+    private ScriptStatusDto status;
     private Date scheduledAt;
     private Date beginExecDate;
     private Date endExecDate;
-
     private Date createdDate;
-
 }
-

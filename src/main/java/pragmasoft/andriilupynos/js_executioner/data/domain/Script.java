@@ -11,14 +11,14 @@ import java.util.Date;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Task {
+public class Script {
 
     private String id;
     private String name;
     private String code;
     private String output;
     private String error;
-    private TaskStatus status;
+    private ScriptStatus status;
     private Date scheduledAt;
     private Date beginExecDate;
     private Date endExecDate;
