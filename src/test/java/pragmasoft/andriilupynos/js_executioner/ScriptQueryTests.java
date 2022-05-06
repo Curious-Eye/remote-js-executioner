@@ -1,180 +1,168 @@
 package pragmasoft.andriilupynos.js_executioner;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.data.ScriptStore;
-import pragmasoft.andriilupynos.js_executioner.data.domain.Script;
-import pragmasoft.andriilupynos.js_executioner.data.domain.ScriptStatus;
-import pragmasoft.andriilupynos.js_executioner.service.ScriptQueryService;
+import pragmasoft.andriilupynos.js_executioner.domain.model.script.ExecutionStatus;
+import pragmasoft.andriilupynos.js_executioner.domain.model.script.ScriptFindFilter;
+import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
 
-import java.util.Date;
-import java.util.List;
+import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 public class ScriptQueryTests {
 
-    @Autowired private ScriptStore scriptStore;
-    @Autowired private ScriptQueryService scriptQueryService;
+    @Autowired private ScriptService scriptService;
 
     @BeforeEach
-    public void clearDB() {
-        scriptStore.deleteAll().block();
+    public void deleteAllScripts() {
+        scriptService.deleteAll();
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsByName() {
+    public void userShouldBeAbleToGetInfoAboutScript() {
         // GIVEN
-        scriptStore.saveAll(
-                List.of(
-                        Script.builder()
-                                .id("1")
-                                .name("Query data script")
-                                .status(ScriptStatus.STOPPED)
-                                .build(),
-                        Script.builder()
-                                .id("2")
-                                .name("Input data script")
-                                .status(ScriptStatus.NEW)
-                                .build()
-                )
-        ).collectList().block();
+        var code = "print('Hi');";
+        var id = scriptService.scheduleScript(code, null);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    assertEquals(ExecutionStatus.COMPLETED,
+                            scriptService.getFullInfoById(id).getExecutionInfo().getStatus());
+                });
 
         // WHEN
-        var res = scriptQueryService.search(
-                ScriptQueryService.ScriptSearchModel.builder().name("Input data script").build()
-        ).collectList().block();
+        var script = scriptService.getFullInfoById(id);
 
         // THEN
-        assertEquals(1, res.size());
-        var foundScript = res.get(0);
-        assertEquals("2", foundScript.getId());
-        assertEquals("Input data script", foundScript.getName());
-        assertEquals(ScriptStatus.NEW, foundScript.getStatus());
+        assertNotNull(script);
+        assertEquals(id, script.getId());
+        assertEquals(code, script.getCode());
+        assertNotNull(script.getCreatedDate());
+        var execution = script.getExecutionInfo();
+        assertEquals(ExecutionStatus.COMPLETED, execution.getStatus());
+        assertNull(execution.getInterruptionMsg());
+        assertEquals("", execution.getError());
+        assertEquals("Hi\n", execution.getOutput());
+        assertNotNull(execution.getBeginExecDate());
+        assertNotNull(execution.getEndExecDate());
+    }
+
+    @Test
+    public void userShouldBeAbleToGetInfoAboutScriptExecution() {
+        // GIVEN
+        var code = "print('Hi'); while(true) {}";
+        var id = scriptService.scheduleScript(code, null);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    var execution = scriptService.getFullInfoById(id).getExecutionInfo();
+                    assertEquals(ExecutionStatus.EXECUTING, execution.getStatus());
+                    assertEquals("Hi\n", execution.getOutput());
+                });
+
+        // WHEN
+        var execution = scriptService.getExecutionInfo(id);
+
+        // THEN
+        assertEquals(ExecutionStatus.EXECUTING, execution.getStatus());
+        assertNull(execution.getInterruptionMsg());
+        assertEquals("", execution.getError());
+        assertEquals("Hi\n", execution.getOutput());
+        assertNotNull(execution.getBeginExecDate());
+        assertNull(execution.getEndExecDate());
     }
 
     @Test
     public void userShouldBeAbleToSearchScriptsByStatus() {
         // GIVEN
-        scriptStore.saveAll(
-                List.of(
-                        Script.builder()
-                                .id("1")
-                                .name("Script 1")
-                                .status(ScriptStatus.STOPPED)
-                                .build(),
-                        Script.builder()
-                                .id("2")
-                                .name("Script 2")
-                                .status(ScriptStatus.NEW)
-                                .build()
-                )
-        ).collectList().block();
+        var script1Id = scriptService.scheduleScript("while(true) {}", null);
+        scriptService.scheduleScript("print('hi 2');", null);
+        scriptService.changeExecution(script1Id, ExecutionStatus.STOPPED);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    assertEquals(ExecutionStatus.STOPPED,
+                            scriptService.getFullInfoById(script1Id).getExecutionInfo().getStatus());
+                });
 
         // WHEN
-        var res = scriptQueryService.search(
-                ScriptQueryService.ScriptSearchModel.builder().status(ScriptStatus.STOPPED).build()
-        ).collectList().block();
+        var res = scriptService.getShortInfoMatching(new ScriptFindFilter(ExecutionStatus.STOPPED, null));
 
         // THEN
         assertEquals(1, res.size());
         var foundScript = res.get(0);
-        assertEquals("1", foundScript.getId());
-        assertEquals("Script 1", foundScript.getName());
-        assertEquals(ScriptStatus.STOPPED, foundScript.getStatus());
+        assertEquals(script1Id, foundScript.getId());
+        assertEquals("while(true) {}", foundScript.getCode());
+        assertNull(foundScript.getScheduledAt());
+        assertNotNull(foundScript.getCreatedDate());
+        assertEquals(ExecutionStatus.STOPPED, foundScript.getStatus());
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsWithOrderByCreationDate() {
+    public void userShouldBeAbleToSearchScriptsWithOrderByCreationDate() throws InterruptedException {
         // GIVEN
-        scriptStore.saveAll(
-                List.of(
-                        Script.builder()
-                                .id("1")
-                                .createdDate(new Date())
-                                .build(),
-                        Script.builder()
-                                .id("2")
-                                .createdDate(Date.from(new Date().toInstant().plusMillis(100)))
-                                .build(),
-                        Script.builder()
-                                .id("3")
-                                .createdDate(Date.from(new Date().toInstant().plusMillis(200)))
-                                .build()
-                )
-        ).collectList().block();
+        var script1Id = scriptService.scheduleScript("print('hi 1');", null);
+        Thread.sleep(1);
+        var script2Id = scriptService.scheduleScript("print('hi 2');", null);
+        Thread.sleep(1);
+        var script3Id = scriptService.scheduleScript("print('hi 3');", null);
 
         // WHEN
-        var res = scriptQueryService.search(
-                ScriptQueryService.ScriptSearchModel.builder().newFirst(false).build()
-        ).collectList().block();
+        var res = scriptService.getShortInfoMatching(new ScriptFindFilter(null, false));
 
         // THEN
         assertEquals(3, res.size());
-        assertEquals("1", res.get(0).getId());
-        assertEquals("2", res.get(1).getId());
-        assertEquals("3", res.get(2).getId());
+        assertEquals(script1Id, res.get(0).getId());
+        assertEquals(script2Id, res.get(1).getId());
+        assertEquals(script3Id, res.get(2).getId());
 
         // WHEN
-        res = scriptQueryService.search(
-                ScriptQueryService.ScriptSearchModel.builder().newFirst(true).build()
-        ).collectList().block();
+        res = scriptService.getShortInfoMatching(new ScriptFindFilter(null, true));
 
         // THEN
         assertEquals(3, res.size());
-        assertEquals("3", res.get(0).getId());
-        assertEquals("2", res.get(1).getId());
-        assertEquals("1", res.get(2).getId());
+        assertEquals(script3Id, res.get(0).getId());
+        assertEquals(script2Id, res.get(1).getId());
+        assertEquals(script1Id, res.get(2).getId());
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsWithComplexFilter() {
+    public void userShouldBeAbleToSearchScriptsWithComplexFilter() throws InterruptedException {
         // GIVEN
-        scriptStore.saveAll(
-                List.of(
-                        Script.builder()
-                                .id("0")
-                                .name("Test name")
-                                .status(ScriptStatus.EXECUTING)
-                                .createdDate(new Date())
-                                .build(),
-                        Script.builder()
-                                .id("1")
-                                .name("Test name")
-                                .status(ScriptStatus.NEW)
-                                .createdDate(Date.from(new Date().toInstant().plusMillis(100)))
-                                .build(),
-                        Script.builder()
-                                .id("2")
-                                .name("Test name")
-                                .status(ScriptStatus.NEW)
-                                .createdDate(Date.from(new Date().toInstant().plusMillis(200)))
-                                .build(),
-                        Script.builder()
-                                .id("3")
-                                .name("Stopped script")
-                                .status(ScriptStatus.STOPPED)
-                                .createdDate(Date.from(new Date().toInstant().plusMillis(300)))
-                                .build()
-                )
-        ).collectList().block();
+        var script1Id = scriptService.scheduleScript("print('hi 1');", null);
+        Thread.sleep(1);
+        var script2Id = scriptService.scheduleScript("while(true) {}", null);
+        Thread.sleep(1);
+        var script3Id = scriptService.scheduleScript("while(true) {}", null);
+        Thread.sleep(1);
+        var script4Id = scriptService.scheduleScript("print('hi 4');", null);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(() -> {
+                    assertEquals(ExecutionStatus.COMPLETED,
+                            scriptService.getFullInfoById(script1Id).getExecutionInfo().getStatus());
+                    assertEquals(ExecutionStatus.COMPLETED,
+                            scriptService.getFullInfoById(script4Id).getExecutionInfo().getStatus());
+
+                    assertEquals(ExecutionStatus.EXECUTING,
+                            scriptService.getFullInfoById(script2Id).getExecutionInfo().getStatus());
+                    assertEquals(ExecutionStatus.EXECUTING,
+                            scriptService.getFullInfoById(script3Id).getExecutionInfo().getStatus());
+                });
 
         // WHEN
-        var res = scriptQueryService.search(
-                ScriptQueryService.ScriptSearchModel.builder()
-                        .status(ScriptStatus.NEW)
-                        .name("Test name")
-                        .newFirst(true)
-                        .build()
-        ).collectList().block();
+        var res =
+                scriptService.getShortInfoMatching(new ScriptFindFilter(ExecutionStatus.EXECUTING, false));
 
         // THEN
         assertEquals(2, res.size());
-        assertEquals("2", res.get(0).getId());
-        assertEquals("1", res.get(1).getId());
+        assertEquals(script2Id, res.get(0).getId());
+        assertEquals(script3Id, res.get(1).getId());
     }
 
 }

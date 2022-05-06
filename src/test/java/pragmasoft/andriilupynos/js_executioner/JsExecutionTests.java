@@ -1,38 +1,24 @@
 package pragmasoft.andriilupynos.js_executioner;
 
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.data.ScriptStore;
-import pragmasoft.andriilupynos.js_executioner.data.domain.Script;
-import pragmasoft.andriilupynos.js_executioner.data.domain.ScriptStatus;
-import pragmasoft.andriilupynos.js_executioner.exception.InvalidJSProvidedException;
-import pragmasoft.andriilupynos.js_executioner.service.ScriptExecuteService;
-import pragmasoft.andriilupynos.js_executioner.service.ScriptScheduleService;
-import reactor.test.StepVerifier;
+import pragmasoft.andriilupynos.js_executioner.domain.model.exception.IllegalArgumentException;
+import pragmasoft.andriilupynos.js_executioner.domain.model.exception.InvalidJSProvidedException;
+import pragmasoft.andriilupynos.js_executioner.domain.model.script.ExecutionStatus;
+import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
 
-import java.io.StringWriter;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 public class JsExecutionTests {
 
-    @Autowired
-    private ScriptScheduleService scriptScheduleService;
-    @Autowired
-    private ScriptStore scriptStore;
-    @Autowired
-    private ScriptExecuteService scriptExecuteService;
-
-    @BeforeEach
-    public void clearDB() {
-        scriptStore.deleteAll().block();
-        scriptExecuteService.stopAll().block();
-    }
+    @Autowired private ScriptService scriptService;
 
     @Test
     public void userMustBeAbleToScheduleJsExecution() {
@@ -40,19 +26,16 @@ public class JsExecutionTests {
         String code = "console.log(\"Hi\")";
 
         // WHEN - Schedule code execution
-        var res = scriptScheduleService.schedule(ScriptScheduleService.ScriptScheduleModel.builder().code(code).build()).block();
+        var id = scriptService.scheduleScript(code, new Date(Instant.now().plusSeconds(60).getEpochSecond()));
 
-        // THEN - Script should be created
-        assertNotNull(res);
-        assertNotNull(res.getName());
-        assertEquals(code, res.getCode());
-        assertEquals(ScriptStatus.NEW, res.getStatus());
+        // THEN - Script should be created and scheduled
+        assertNotNull(id);
 
-        var storedScript = scriptStore.findById(res.getId()).block();
+        var storedScript = scriptService.getFullInfoById(id);
         assertNotNull(storedScript);
-        assertEquals(res.getName(), storedScript.getName());
+        assertEquals(id, storedScript.getId());
         assertEquals(code, storedScript.getCode());
-        assertEquals(ScriptStatus.NEW, storedScript.getStatus());
+        assertEquals(ExecutionStatus.SCHEDULED, storedScript.getExecutionInfo().getStatus());
     }
 
     @Test
@@ -62,21 +45,15 @@ public class JsExecutionTests {
 
         // WHEN - Schedule invalid code execution
         // THEN - Script should not be created
-        StepVerifier.create(
-                        scriptScheduleService.schedule(ScriptScheduleService.ScriptScheduleModel.builder().code(code).build())
-                )
-                .verifyErrorMatches(err -> {
-                    assertInstanceOf(InvalidJSProvidedException.class, err);
-                    assertEquals(
-                            "SyntaxError: <eval>:1:9 Expected ident but found .\n" +
-                                    "some_var..call()\n" +
-                                    "         ^\n",
-                            err.getMessage()
-                    );
-                    return true;
-                });
-
-        assertEquals(0, scriptStore.findAll().collectList().block().size());
+        var ex = assertThrows(InvalidJSProvidedException.class, () -> {
+            scriptService.scheduleScript(code, null);
+        });
+        assertEquals(
+                "SyntaxError: Unnamed:1:9 Expected ident but found .\n" +
+                        "some_var..call()\n" +
+                        "         ^\n",
+                ex.getMessage()
+        );
     }
 
     @Test
@@ -85,81 +62,78 @@ public class JsExecutionTests {
         String code = "print('Hi');";
 
         // WHEN
-        scriptExecuteService.execute(
-                Script.builder()
-                        .id("1")
-                        .name("Script 1")
-                        .code(code)
-                        .status(ScriptStatus.NEW)
-                        .build(),
-                new StringWriter()
-        ).block();
+        var id = scriptService.scheduleScript(code, null);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    var script = scriptService.getFullInfoById(id);
+                    assertEquals(ExecutionStatus.COMPLETED, script.getExecutionInfo().getStatus());
+                });
 
         // THEN
-        var storedScript = scriptStore.findById("1").block();
-        assertNotNull(storedScript);
-
-        assertEquals(ScriptStatus.COMPLETED, storedScript.getStatus());
-        assertEquals("Hi\n", storedScript.getOutput());
-        assertNull(storedScript.getError());
+        var storedScript = scriptService.getFullInfoById(id);
+        assertEquals(ExecutionStatus.COMPLETED, storedScript.getExecutionInfo().getStatus());
+        assertEquals("Hi\n", storedScript.getExecutionInfo().getOutput());
+        assertEquals("", storedScript.getExecutionInfo().getError());
     }
 
     @Test
-    public void ifExecutionThrowsAnErrorItShouldBeSaved() {
+    public void allExecutionErrorsShouldBeSaved() {
         // GIVEN
         String code = "print('Hi');" +
-                "some_undefined_var.call()";
+                "console.error('Std err');" +
+                "some_undefined_var.call();";
 
         // WHEN
-        scriptExecuteService.execute(
-                Script.builder()
-                        .id("1")
-                        .name("Script 1")
-                        .code(code)
-                        .status(ScriptStatus.NEW)
-                        .build(),
-                new StringWriter()
-        ).block();
+        var id = scriptService.scheduleScript(code, null);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> {
+                    var script = scriptService.getFullInfoById(id);
+                    assertEquals(ExecutionStatus.ERRORED, script.getExecutionInfo().getStatus());
+                });
 
         // THEN
-        var storedScript = scriptStore.findById("1").block();
-        assertNotNull(storedScript);
-
-        assertEquals(ScriptStatus.ERRORED, storedScript.getStatus());
-        assertEquals("ReferenceError: some_undefined_var is not defined", storedScript.getError());
-        assertEquals("Hi\n", storedScript.getOutput());
+        var storedScript = scriptService.getFullInfoById(id);
+        assertEquals(ExecutionStatus.ERRORED, storedScript.getExecutionInfo().getStatus());
+        assertEquals("Std err\n", storedScript.getExecutionInfo().getError());
+        assertEquals("ReferenceError: some_undefined_var is not defined",
+                storedScript.getExecutionInfo().getInterruptionMsg());
+        assertEquals("Hi\n", storedScript.getExecutionInfo().getOutput());
     }
 
     @Test
     public void userShouldBeAbleToStopScriptExecution() {
         // GIVEN - script with infinite loop is executing
-        scriptStore.save(
-                Script.builder()
-                        .id("1")
-                        .name("Script 1")
-                        .code("while(true) { }")
-                        .status(ScriptStatus.NEW)
-                        .build()
-        ).block();
+        var id = scriptService.scheduleScript("while(true) { }", null);
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
-                .until(() -> scriptStore.findById("1").block().getStatus() == ScriptStatus.EXECUTING);
+                .until(() -> scriptService.getFullInfoById(id).getExecutionInfo().getStatus() == ExecutionStatus.EXECUTING);
 
         // WHEN - we stop this script
-        scriptExecuteService.changeExecution(
-                "1",
-                ScriptExecuteService.ChangeExecutionModel.builder()
-                        .action(ScriptExecuteService.ChangeExecutionAction.STOP)
-                        .build()
-        ).block();
+        scriptService.changeExecution(id, ExecutionStatus.STOPPED);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(2))
+                .until(() -> scriptService.getFullInfoById(id).getExecutionInfo().getStatus() == ExecutionStatus.STOPPED);
 
         // THEN - script should be stopped
+        var script = scriptService.getFullInfoById(id);
+        assertEquals(ExecutionStatus.STOPPED, script.getExecutionInfo().getStatus());
+    }
+
+    @Test
+    public void userShouldNotBeAbleToChangeExecutionOtherThanStoppingIt() {
+        // GIVEN - script with infinite loop is executing
+        var id = scriptService.scheduleScript("while(true) { }", null);
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
-                .untilAsserted(() -> {
-                    var stoppedScript = scriptStore.findById("1").block();
-                    assertEquals(ScriptStatus.STOPPED, stoppedScript.getStatus());
-                });
+                .until(() -> scriptService.getFullInfoById(id).getExecutionInfo().getStatus() == ExecutionStatus.EXECUTING);
+
+        // WHEN - we try to do something other than stopping the script
+        assertThrows(IllegalArgumentException.class, () -> scriptService.changeExecution(id, ExecutionStatus.COMPLETED));
+        // THEN - script's execution should not be modified
+        var script = scriptService.getFullInfoById(id);
+        assertEquals(ExecutionStatus.EXECUTING, script.getExecutionInfo().getStatus());
     }
 
 }

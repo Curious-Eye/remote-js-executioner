@@ -3,50 +3,36 @@ package pragmasoft.andriilupynos.js_executioner;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.data.ScriptStore;
-import pragmasoft.andriilupynos.js_executioner.data.domain.Script;
-import pragmasoft.andriilupynos.js_executioner.exception.ScriptNotFoundException;
-import pragmasoft.andriilupynos.js_executioner.service.ScriptDeleteService;
-import reactor.test.StepVerifier;
+import pragmasoft.andriilupynos.js_executioner.domain.model.exception.ScriptNotFoundException;
+import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
 
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 public class ScriptManagementTests {
 
-    @Autowired private ScriptDeleteService scriptDeleteService;
-    @Autowired private ScriptStore scriptStore;
+    @Autowired private ScriptService scriptService;
 
     @Test
     public void userShouldBeAbleToDeleteScript() {
         // GIVEN
-        scriptStore.save(
-                Script.builder()
-                        .id("1")
-                        .build()
-        ).block();
+        var id = scriptService.scheduleScript("while(true){}", null);
 
         // WHEN
-        scriptDeleteService.deleteById("1").block();
+        scriptService.deleteById(id);
 
         // THEN
-        assertNull(scriptStore.findById("1").block());
+        assertThrows(ScriptNotFoundException.class, () -> scriptService.getFullInfoById(id));
     }
 
     @Test
     public void ifUserDeletesNonExistentScriptExceptionShouldBeThrown() {
         // GIVEN
-        scriptStore.save(
-                Script.builder()
-                        .id("1")
-                        .build()
-        ).block();
+        var id = scriptService.scheduleScript("print('Hi')", null);
 
-        // WHEN
-        StepVerifier.create(scriptDeleteService.deleteById("2"))
-        // THEN
-                .expectError(ScriptNotFoundException.class)
-                .verify();
+        // WHEN - we stop non-existent script
+        // THEN - Exception should be thrown
+        assertThrows(ScriptNotFoundException.class, () -> scriptService.deleteById("2"));
     }
 
 }
