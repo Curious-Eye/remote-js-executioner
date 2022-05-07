@@ -119,8 +119,7 @@ public class ScriptController {
                 null,
                 List.of(
                         linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
-                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script"),
-                        linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel("scripts")
+                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script")
                 )
         );
     }
@@ -134,8 +133,7 @@ public class ScriptController {
         return EntityModel.of(
                 new ScriptExecutionDto(scriptService.getExecutionInfo(id)),
                 linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script"),
-                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel("scripts")
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script")
         );
     }
 
