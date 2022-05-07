@@ -34,9 +34,7 @@ public class DomainScriptService implements ScriptService {
         log.debug("Scheduling script for future execution with code: {}", code);
         var script = new Script(UUID.randomUUID().toString(), code, scheduledAt);
         this.scripts.put(script.getId(), script);
-        synchronized (this.engine) {
-            script.validateCode(this.engine);
-        }
+        script.validateCode(this.engine);
         script.enqueueExecution(this.engine, this.executor);
         return script.getId();
     }

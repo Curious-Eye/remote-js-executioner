@@ -53,13 +53,18 @@ public class Script {
     }
 
     /**
-     * @param engine engine to validate the code with
+     * @param engine engine to build context to validate the code with
      */
     public void validateCode(Engine engine) {
-        try (Context ctx = newContextBuilder().engine(engine).build()) {
+        Context ctx = newContextBuilder().engine(engine).build();
+        try {
+            ctx.enter();
             ctx.parse("js", this.code);
         } catch (Exception e) {
             throw new InvalidJSProvidedException(e.getMessage());
+        } finally {
+            ctx.leave();
+            ctx.close();
         }
     }
 
