@@ -26,7 +26,7 @@ public class JsExecutionTests {
         String code = "console.log(\"Hi\")";
 
         // WHEN - Schedule code execution
-        var id = scriptService.scheduleScript(code, new Date(Instant.now().plusSeconds(60).getEpochSecond()));
+        var id = scriptService.scheduleScript(code, new Date(Instant.now().plusSeconds(60).toEpochMilli()));
 
         // THEN - Script should be created and scheduled
         assertNotNull(id);
