@@ -95,7 +95,7 @@ public class Execution {
         if (this.scheduledAt == null)
             return 0;
 
-        return new Date().toInstant().minusMillis(this.scheduledAt.getTime()).toEpochMilli();
+        return this.scheduledAt.getTime() - new Date().getTime();
     }
 
     public Date getScheduledAt() {
@@ -124,11 +124,7 @@ public class Execution {
 
     public long getExecutionDurationMillis() {
         if (beginExecDate != null) {
-            if (endExecDate != null) {
-                return beginExecDate.getTime() - endExecDate.getTime();
-            } else {
-                return new Date().getTime() - beginExecDate.getTime();
-            }
+            return Objects.requireNonNullElseGet(endExecDate, Date::new).getTime() - beginExecDate.getTime();
         } else {
             return 0L;
         }

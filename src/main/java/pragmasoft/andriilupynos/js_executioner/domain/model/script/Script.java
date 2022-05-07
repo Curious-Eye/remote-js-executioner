@@ -3,6 +3,8 @@ package pragmasoft.andriilupynos.js_executioner.domain.model.script;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.PolyglotException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pragmasoft.andriilupynos.js_executioner.domain.model.exception.InvalidJSProvidedException;
 import pragmasoft.andriilupynos.js_executioner.util.DateUtils;
 
@@ -19,6 +21,8 @@ import java.util.concurrent.TimeUnit;
  * Representation of a script that can be executed.
  */
 public class Script {
+
+    private static final Logger log = LoggerFactory.getLogger(Script.class);
 
     private final String id;
     private final String code;
@@ -90,6 +94,7 @@ public class Script {
                         .build()
         );
         return () -> {
+            log.debug("Began script execution {}", this.id);
             this.execution.setStarted();
             Context cx = tl.get();
             cx.enter();
@@ -110,7 +115,9 @@ public class Script {
                 cx.leave();
                 cx.close();
             }
-            return new Execution(this.execution);
+            var exec = getExecutionInfo();
+            log.debug("Finished script execution {} with status {}", this.id, exec.getStatus());
+            return exec;
         };
     }
 
