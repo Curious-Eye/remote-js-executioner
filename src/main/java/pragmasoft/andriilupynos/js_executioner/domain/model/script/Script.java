@@ -74,14 +74,16 @@ public class Script {
      * @param engine   engine to execute this script with
      * @param executor executor for execution scheduling
      */
-    public synchronized void enqueueExecution(Engine engine, ScheduledExecutorService executor) {
-        this.execution.setScheduled();
-        this.executionFuture =
-                executor.schedule(
-                        this.execute(engine),
-                        this.execution.getDelayBeforeExecutionMillis(),
-                        TimeUnit.MILLISECONDS
-                );
+    public void enqueueExecution(Engine engine, ScheduledExecutorService executor) {
+        synchronized (this.execution) {
+            this.execution.setScheduled();
+            this.executionFuture =
+                    executor.schedule(
+                            this.execute(engine),
+                            this.execution.getDelayBeforeExecutionMillis(),
+                            TimeUnit.MILLISECONDS
+                    );
+        }
     }
 
     /**
@@ -129,18 +131,24 @@ public class Script {
     /**
      * Stop execution of the current script if it is being performed
      */
-    public synchronized void stopExecution() {
-        if (this.executionFuture != null) {
-            this.executionFuture.cancel(true);
-            this.executionFuture = null;
+    public void stopExecution() {
+        synchronized (this.execution) {
+            if (this.execution.getStatus() == ExecutionStatus.EXECUTING && this.executionFuture != null) {
+                this.executionFuture.cancel(true);
+                this.executionFuture = null;
+            }
         }
     }
 
-    public synchronized void syncOutput() {
-        this.execution.syncOutput(
-                this.outStream.toString(),
-                this.errStream.toString()
-        );
+    public void syncOutput() {
+        synchronized (this.execution) {
+            if (this.execution.getStatus() == ExecutionStatus.EXECUTING) {
+                this.execution.syncOutput(
+                        this.outStream.toString(),
+                        this.errStream.toString()
+                );
+            }
+        }
     }
 
     public Execution getExecutionInfo() {
