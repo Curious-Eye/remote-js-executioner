@@ -40,9 +40,11 @@ public class ScriptController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public EntityModel<ScriptCreateRespDto> scheduleScript(@RequestBody ScriptCreateRqDto rq) {
         var id = scriptService.scheduleScript(rq.getCode(), rq.getExecutionDate());
+        //noinspection ConstantConditions
         return EntityModel.of(
                 new ScriptCreateRespDto(id),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withSelfRel(),
+                linkTo(methodOn(ScriptController.class).scheduleScript(null)).withSelfRel(),
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL),
                 linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
@@ -125,10 +127,11 @@ public class ScriptController {
             @RequestBody ScriptChangeExecutionRqDto rq
     ) {
         scriptService.changeExecution(id, ExecutionStatus.valueOf(rq.getStatus().name()));
+        //noinspection ConstantConditions
         return RepresentationModel.of(
                 null,
                 List.of(
-                        linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
+                        linkTo(methodOn(ScriptController.class).changeScriptExecution(id, null)).withSelfRel(),
                         linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL)
                 )
         );
