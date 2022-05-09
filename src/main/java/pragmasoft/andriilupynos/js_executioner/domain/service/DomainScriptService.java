@@ -84,12 +84,14 @@ public class DomainScriptService implements ScriptService {
     @Override
     public Script changeExecution(String id, ExecutionStatus status) {
         log.debug("Changing script's execution with id {}. status = {}", id, status);
-        if (status != ExecutionStatus.STOPPED)
-            throw new IllegalArgumentException("Existing scripts can only be stopped by hand");
-
         var script = this.scripts.get(id);
         if (script == null)
             throw new ScriptNotFoundException(id);
+
+        if (status != ExecutionStatus.STOPPED)
+            throw new IllegalArgumentException("Illegal status change requested - " + status +
+                    ". Status can only be changed to STOPPED");
+
         script.stopExecution();
         return new Script(script);
     }
