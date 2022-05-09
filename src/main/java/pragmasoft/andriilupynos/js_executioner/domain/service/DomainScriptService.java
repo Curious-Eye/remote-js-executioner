@@ -33,8 +33,8 @@ public class DomainScriptService implements ScriptService {
     public String scheduleScript(String code, Date scheduledAt) {
         log.debug("Scheduling script for future execution with code: {}", code);
         var script = new Script(UUID.randomUUID().toString(), code, scheduledAt);
-        this.scripts.put(script.getId(), script);
         script.validateCode(this.engine);
+        this.scripts.put(script.getId(), script);
         script.enqueueExecution(this.engine, this.executor);
         return script.getId();
     }
