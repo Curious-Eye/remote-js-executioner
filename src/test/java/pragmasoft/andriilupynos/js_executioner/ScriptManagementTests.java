@@ -9,12 +9,12 @@ import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
-public class ScriptManagementTests {
+class ScriptManagementTests {
 
     @Autowired private ScriptService scriptService;
 
     @Test
-    public void userShouldBeAbleToDeleteScript() {
+    void userShouldBeAbleToDeleteScript() {
         // GIVEN
         var id = scriptService.scheduleScript("while(true){}", null);
 
@@ -26,9 +26,9 @@ public class ScriptManagementTests {
     }
 
     @Test
-    public void ifUserDeletesNonExistentScriptExceptionShouldBeThrown() {
+    void ifUserDeletesNonExistentScriptExceptionShouldBeThrown() {
         // GIVEN
-        var id = scriptService.scheduleScript("print('Hi')", null);
+        scriptService.scheduleScript("print('Hi')", null);
 
         // WHEN - we stop non-existent script
         // THEN - Exception should be thrown

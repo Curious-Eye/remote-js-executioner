@@ -8,6 +8,8 @@ import org.springframework.hateoas.server.core.DefaultLinkRelationProvider;
 import pragmasoft.andriilupynos.js_executioner.application.api.dto.ScriptDto;
 import pragmasoft.andriilupynos.js_executioner.application.api.dto.ScriptSimpleDto;
 
+import javax.annotation.Nonnull;
+
 @Configuration
 public class HateoasConfig {
 
@@ -19,7 +21,8 @@ public class HateoasConfig {
     public static class CustomLinkRelationProvider extends DefaultLinkRelationProvider {
 
         @Override
-        public LinkRelation getCollectionResourceRelFor(Class<?> type) {
+        @Nonnull
+        public LinkRelation getCollectionResourceRelFor(@Nonnull Class<?> type) {
             if (ScriptSimpleDto.class.isAssignableFrom(type))
                 return LinkRelation.of("scripts");
 
@@ -27,7 +30,8 @@ public class HateoasConfig {
         }
 
         @Override
-        public LinkRelation getItemResourceRelFor(Class<?> type) {
+        @Nonnull
+        public LinkRelation getItemResourceRelFor(@Nonnull Class<?> type) {
             if (ScriptDto.class.isAssignableFrom(type))
                 return LinkRelation.of("script");
 

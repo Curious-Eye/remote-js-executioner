@@ -16,12 +16,12 @@ import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class JsExecutionTests {
+class JsExecutionTests {
 
     @Autowired private ScriptService scriptService;
 
     @Test
-    public void userMustBeAbleToScheduleJsExecution() {
+    void userMustBeAbleToScheduleJsExecution() {
         // GIVEN
         String code = "console.log(\"Hi\")";
 
@@ -39,15 +39,16 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void userMustNotBeAbleToScheduleInvalidJs() {
+    void userMustNotBeAbleToScheduleInvalidJs() {
         // GIVEN
         String code = "some_var..call()";
 
         // WHEN - Schedule invalid code execution
         // THEN - Script should not be created
-        var ex = assertThrows(InvalidJSProvidedException.class, () -> {
-            scriptService.scheduleScript(code, null);
-        });
+        var ex = assertThrows(
+                InvalidJSProvidedException.class,
+                () -> scriptService.scheduleScript(code, null)
+        );
         assertEquals(
                 "SyntaxError: Unnamed:1:9 Expected ident but found .\n" +
                         "some_var..call()\n" +
@@ -57,7 +58,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void userShouldBeAbleToExecuteJs() {
+    void userShouldBeAbleToExecuteJs() {
         // GIVEN
         String code = "print('Hi');";
 
@@ -78,7 +79,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void allExecutionErrorsShouldBeSaved() {
+    void allExecutionErrorsShouldBeSaved() {
         // GIVEN
         String code = "print('Hi');" +
                 "console.error('Std err');" +
@@ -103,7 +104,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void userShouldBeAbleToStopScriptExecution() {
+    void userShouldBeAbleToStopScriptExecution() {
         // GIVEN - script with infinite loop is executing
         var id = scriptService.scheduleScript("while(true) { }", null);
         Awaitility.await()
@@ -122,7 +123,7 @@ public class JsExecutionTests {
     }
 
     @Test
-    public void userShouldNotBeAbleToChangeExecutionOtherThanStoppingIt() {
+    void userShouldNotBeAbleToChangeExecutionOtherThanStoppingIt() {
         // GIVEN - script with infinite loop is executing
         var id = scriptService.scheduleScript("while(true) { }", null);
         Awaitility.await()

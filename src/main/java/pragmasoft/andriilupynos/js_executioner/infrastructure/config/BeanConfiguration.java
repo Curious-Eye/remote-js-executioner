@@ -21,7 +21,7 @@ public class BeanConfiguration {
 
     @Bean(destroyMethod = "close")
     public Engine scriptEngine() {
-        return Engine.newBuilder()/*.allowExperimentalOptions(true)*/.build();
+        return Engine.newBuilder().build();
     }
 
 }

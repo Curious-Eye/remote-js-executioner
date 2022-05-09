@@ -14,7 +14,7 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class ScriptQueryTests {
+class ScriptQueryTests {
 
     @Autowired private ScriptService scriptService;
 
@@ -24,16 +24,18 @@ public class ScriptQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToGetInfoAboutScript() {
+    void userShouldBeAbleToGetInfoAboutScript() {
         // GIVEN
         var code = "print('Hi');";
         var id = scriptService.scheduleScript(code, null);
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
-                .untilAsserted(() -> {
-                    assertEquals(ExecutionStatus.COMPLETED,
-                            scriptService.getFullInfoById(id).getExecutionInfo().getStatus());
-                });
+                .untilAsserted(() ->
+                        assertEquals(
+                                ExecutionStatus.COMPLETED,
+                                scriptService.getFullInfoById(id).getExecutionInfo().getStatus()
+                        )
+                );
 
         // WHEN
         var script = scriptService.getFullInfoById(id);
@@ -53,7 +55,7 @@ public class ScriptQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToGetInfoAboutScriptExecution() {
+    void userShouldBeAbleToGetInfoAboutScriptExecution() {
         // GIVEN
         var code = "print('Hi'); while(true) {}";
         var id = scriptService.scheduleScript(code, null);
@@ -78,17 +80,19 @@ public class ScriptQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsByStatus() {
+    void userShouldBeAbleToSearchScriptsByStatus() {
         // GIVEN
         var script1Id = scriptService.scheduleScript("while(true) {}", null);
         scriptService.scheduleScript("print('hi 2');", null);
         scriptService.changeExecution(script1Id, ExecutionStatus.STOPPED);
         Awaitility.await()
                 .atMost(Duration.ofSeconds(4))
-                .untilAsserted(() -> {
-                    assertEquals(ExecutionStatus.STOPPED,
-                            scriptService.getFullInfoById(script1Id).getExecutionInfo().getStatus());
-                });
+                .untilAsserted(() ->
+                        assertEquals(
+                                ExecutionStatus.STOPPED,
+                                scriptService.getFullInfoById(script1Id).getExecutionInfo().getStatus()
+                        )
+                );
 
         // WHEN
         var res = scriptService.getShortInfoMatching(new ScriptFindFilter(ExecutionStatus.STOPPED, null));
@@ -104,7 +108,7 @@ public class ScriptQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsWithOrderByCreationDate() throws InterruptedException {
+    void userShouldBeAbleToSearchScriptsWithOrderByCreationDate() throws InterruptedException {
         // GIVEN
         var script1Id = scriptService.scheduleScript("print('hi 1');", null);
         Thread.sleep(1);
@@ -132,7 +136,7 @@ public class ScriptQueryTests {
     }
 
     @Test
-    public void userShouldBeAbleToSearchScriptsWithComplexFilter() throws InterruptedException {
+    void userShouldBeAbleToSearchScriptsWithComplexFilter() throws InterruptedException {
         // GIVEN
         var script1Id = scriptService.scheduleScript("print('hi 1');", null);
         Thread.sleep(1);

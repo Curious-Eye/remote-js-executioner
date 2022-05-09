@@ -35,6 +35,8 @@ public class IllegalArgumentConverter implements DomainExceptionConverter {
      * the problem
      */
     @ResponseStatus(HttpStatus.BAD_REQUEST)
+    // Here we do not care about too deep of an inheritance
+    @SuppressWarnings("java:S110")
     public static class IllegalArgumentProblem extends AbstractThrowableProblem {
         public IllegalArgumentProblem(String baseProblemUri, String detail) {
             super(

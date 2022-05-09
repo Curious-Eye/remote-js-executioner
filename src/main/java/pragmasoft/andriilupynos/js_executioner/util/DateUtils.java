@@ -4,6 +4,8 @@ import java.util.Date;
 
 public class DateUtils {
 
+    private DateUtils() { }
+
     /**
      * Returns copy of the date or null if src is null
      */

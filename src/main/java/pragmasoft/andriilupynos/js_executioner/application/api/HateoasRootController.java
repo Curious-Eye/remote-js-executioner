@@ -13,6 +13,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 public class HateoasRootController {
 
     @GetMapping
+    // Here we do not care about return of generic wildcard type from method
+    @SuppressWarnings("java:S1452")
     public RepresentationModel<?> getEntitiesLinks() {
         return new RepresentationModel<>(
             List.of(

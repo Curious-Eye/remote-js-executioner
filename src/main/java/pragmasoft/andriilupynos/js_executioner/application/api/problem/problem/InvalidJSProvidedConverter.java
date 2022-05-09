@@ -30,6 +30,8 @@ public class InvalidJSProvidedConverter implements DomainExceptionConverter {
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
+    // Here we do not care about too deep of an inheritance
+    @SuppressWarnings("java:S110")
     public static class InvalidJSProvidedProblem extends AbstractThrowableProblem {
         public InvalidJSProvidedProblem(String baseProblemUri, String detail) {
             super(

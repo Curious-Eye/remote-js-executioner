@@ -30,6 +30,8 @@ public class InvalidExecutionStateConverter implements DomainExceptionConverter 
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
+    // Here we do not care about too deep of an inheritance
+    @SuppressWarnings("java:S110")
     public static class InvalidExecutionStateProblem extends AbstractThrowableProblem {
         public InvalidExecutionStateProblem(String baseProblemUri, String detail) {
             super(

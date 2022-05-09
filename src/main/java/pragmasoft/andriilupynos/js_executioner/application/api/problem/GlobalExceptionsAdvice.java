@@ -10,6 +10,7 @@ import org.zalando.problem.spring.web.advice.ProblemHandling;
 import pragmasoft.andriilupynos.js_executioner.application.api.problem.problem.DomainExceptionConverter;
 import pragmasoft.andriilupynos.js_executioner.domain.model.exception.DomainException;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 @RestControllerAdvice
@@ -24,7 +25,7 @@ public class GlobalExceptionsAdvice implements ProblemHandling {
     }
 
     @Override
-    public ResponseEntity<Problem> handleThrowable(Throwable ex, NativeWebRequest request) {
+    public ResponseEntity<Problem> handleThrowable(Throwable ex, @Nonnull NativeWebRequest request) {
         if (DomainException.class.isAssignableFrom(ex.getClass())) {
             log.warn("BSN_EX({}): {}", ex.getClass().getSimpleName(), ex.getMessage());
             var converter =

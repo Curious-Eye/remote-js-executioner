@@ -1,7 +1,6 @@
 package pragmasoft.andriilupynos.js_executioner.application.api;
 
 import io.swagger.v3.oas.annotations.Operation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.RepresentationModel;
@@ -22,7 +21,14 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @RequestMapping(produces = "application/hal+json")
 public class ScriptController {
 
-    @Autowired private ScriptService scriptService;
+    public static final String HATEOAS_SCRIPTS_REL = "scripts";
+    public static final String HATEOAS_SCRIPT_REL = "script";
+
+    private final ScriptService scriptService;
+
+    public ScriptController(ScriptService scriptService) {
+        this.scriptService = scriptService;
+    }
 
     @Operation(
             operationId = "scheduleScript",
@@ -37,7 +43,7 @@ public class ScriptController {
         return EntityModel.of(
                 new ScriptCreateRespDto(id),
                 linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel("scripts")
+                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
 
@@ -50,7 +56,7 @@ public class ScriptController {
         return EntityModel.of(
                 new ScriptDto(scriptService.getFullInfoById(id)),
                 linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel("scripts")
+                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
 
@@ -60,10 +66,12 @@ public class ScriptController {
             description = "Deletes a script, stopping current execution if it is being performed."
     )
     @DeleteMapping("/scripts/{id}")
+    // Here we do not care about return of generic wildcard type from method
+    @SuppressWarnings("java:S1452")
     public RepresentationModel<?> deleteScriptById(@PathVariable String id) {
         scriptService.deleteById(id);
         return new RepresentationModel<>(
-                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel("scripts")
+                linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
 
@@ -110,6 +118,8 @@ public class ScriptController {
     )
     @PatchMapping("/scripts/{id}/execution")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    // Here we do not care about return of generic wildcard type from method
+    @SuppressWarnings("java:S1452")
     public RepresentationModel<?> changeScriptExecution(
             @PathVariable String id,
             @RequestBody ScriptChangeExecutionRqDto rq
@@ -119,7 +129,7 @@ public class ScriptController {
                 null,
                 List.of(
                         linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
-                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script")
+                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL)
                 )
         );
     }
@@ -133,7 +143,7 @@ public class ScriptController {
         return EntityModel.of(
                 new ScriptExecutionDto(scriptService.getExecutionInfo(id)),
                 linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel("script")
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL)
         );
     }
 

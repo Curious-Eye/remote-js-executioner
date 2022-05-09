@@ -37,16 +37,14 @@ public class Execution {
 
     public synchronized void setScheduled() {
         if (this.status != ExecutionStatus.NEW)
-            throw new InvalidExecutionStateException("Could not schedule script " + scriptId + " execution: " +
-                    "current status is " + this.status + ", but required status is " + ExecutionStatus.NEW);
+            throw new InvalidExecutionStateException(this.scriptId, "schedule", this.status, ExecutionStatus.NEW);
 
         this.status = ExecutionStatus.SCHEDULED;
     }
 
     public synchronized void setStarted() {
         if (this.status != ExecutionStatus.SCHEDULED)
-            throw new InvalidExecutionStateException("Could not start script " + scriptId + " execution: " +
-                    "current status is " + this.status + ", but required status is " + ExecutionStatus.SCHEDULED);
+            throw new InvalidExecutionStateException(this.scriptId, "start", this.status, ExecutionStatus.SCHEDULED);
 
         beginExecDate = new Date();
         this.status = ExecutionStatus.EXECUTING;
@@ -54,16 +52,14 @@ public class Execution {
 
     public synchronized void setCompleted(String output, String error) {
         if (this.status != ExecutionStatus.EXECUTING)
-            throw new InvalidExecutionStateException("Could not complete script " + scriptId + " execution: " +
-                    "current status is " + this.status + ", but required status is " + ExecutionStatus.EXECUTING);
+            throw new InvalidExecutionStateException(this.scriptId, "complete", this.status, ExecutionStatus.EXECUTING);
 
         endExecutionWith(output, error, ExecutionStatus.COMPLETED);
     }
 
     public synchronized void setErrored(String output, String error, String interruptionMsg) {
         if (this.status != ExecutionStatus.EXECUTING)
-            throw new InvalidExecutionStateException("Could not set to errored script " + scriptId + " execution: " +
-                    "current status is " + this.status + ", but required status is " + ExecutionStatus.EXECUTING);
+            throw new InvalidExecutionStateException(this.scriptId, "set errored", this.status, ExecutionStatus.EXECUTING);
 
         this.interruptionMsg = interruptionMsg;
         endExecutionWith(output, error, ExecutionStatus.ERRORED);
@@ -71,8 +67,7 @@ public class Execution {
 
     public synchronized void setStopped(String output, String error) {
         if (this.status != ExecutionStatus.EXECUTING)
-            throw new InvalidExecutionStateException("Could not stop script " + scriptId + " execution: " +
-                    "current status is " + this.status + ", but required status is " + ExecutionStatus.EXECUTING);
+            throw new InvalidExecutionStateException(this.scriptId, "stop", this.status, ExecutionStatus.EXECUTING);
 
         endExecutionWith(output, error, ExecutionStatus.STOPPED);
     }

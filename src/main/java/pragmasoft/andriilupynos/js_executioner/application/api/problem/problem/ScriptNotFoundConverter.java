@@ -30,6 +30,8 @@ public class ScriptNotFoundConverter implements DomainExceptionConverter {
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
+    // Here we do not care about too deep of an inheritance
+    @SuppressWarnings("java:S110")
     public static class ScriptNotFoundProblem extends AbstractThrowableProblem {
         public ScriptNotFoundProblem(String baseProblemUri, String detail) {
             super(

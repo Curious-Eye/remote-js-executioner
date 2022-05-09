@@ -44,7 +44,7 @@ public class DomainScriptService implements ScriptService {
         log.debug("Querying full script info by id {}", id);
         var script = this.scripts.get(id);
         if (script == null)
-            throw new ScriptNotFoundException("Script with such id does not exist");
+            throw new ScriptNotFoundException(id);
 
         script.syncOutput();
         return new Script(script);
@@ -62,7 +62,7 @@ public class DomainScriptService implements ScriptService {
                 .collect(Collectors.toList());
         if (filter.getNewFirst() != null) {
             Comparator<ScriptShortInfo> comparator;
-            if (filter.getNewFirst())
+            if (Boolean.TRUE.equals(filter.getNewFirst()))
                 comparator = Comparator.comparing(ScriptShortInfo::getCreatedDate).reversed();
             else
                 comparator = Comparator.comparing(ScriptShortInfo::getCreatedDate);
@@ -76,7 +76,7 @@ public class DomainScriptService implements ScriptService {
         log.debug("Querying script's execution with id {}", id);
         var script = this.scripts.get(id);
         if (script == null)
-            throw new ScriptNotFoundException("Script with such id does not exist");
+            throw new ScriptNotFoundException(id);
 
         return script.getExecutionInfo();
     }
@@ -89,7 +89,7 @@ public class DomainScriptService implements ScriptService {
 
         var script = this.scripts.get(id);
         if (script == null)
-            throw new ScriptNotFoundException("Script with such id does not exist");
+            throw new ScriptNotFoundException(id);
         script.stopExecution();
         return new Script(script);
     }
@@ -99,12 +99,14 @@ public class DomainScriptService implements ScriptService {
         log.debug("Deleting script by id {}", id);
         var script = this.scripts.remove(id);
         if (script == null)
-            throw new ScriptNotFoundException("Script with such id does not exist");
+            throw new ScriptNotFoundException(id);
         else
             script.stopExecution();
     }
 
     @Override
+    // This method is currently only used in tests, but might be exposed via REST API in the future
+    @SuppressWarnings("unused")
     public void deleteAll() {
         log.debug("Deleting all scripts");
         this.scripts.values().forEach(Script::stopExecution);
