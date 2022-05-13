@@ -6,5 +6,5 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public class ScriptCreateRespDto {
-    private final String id;
+    private final String name;
 }

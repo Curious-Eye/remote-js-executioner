@@ -1,10 +1,9 @@
-package pragmasoft.andriilupynos.js_executioner;
+package pragmasoft.andriilupynos.js_executioner.domain;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pragmasoft.andriilupynos.js_executioner.domain.model.exception.ScriptNotFoundException;
-import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
+import pragmasoft.andriilupynos.js_executioner.domain.exception.ScriptNotFoundException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -16,23 +15,24 @@ class ScriptManagementTests {
     @Test
     void userShouldBeAbleToDeleteScript() {
         // GIVEN
-        var id = scriptService.scheduleScript("while(true){}", null);
+        scriptService.create("print('Hi');", "1");
 
         // WHEN
-        scriptService.deleteById(id);
+        scriptService.delete("1");
 
         // THEN
-        assertThrows(ScriptNotFoundException.class, () -> scriptService.getFullInfoById(id));
+        assertThrows(ScriptNotFoundException.class, () -> scriptService.get("1"));
     }
 
     @Test
     void ifUserDeletesNonExistentScriptExceptionShouldBeThrown() {
         // GIVEN
-        scriptService.scheduleScript("print('Hi')", null);
+        scriptService.create("print('Hi');", "1");
+        scriptService.delete("1");
 
         // WHEN - we stop non-existent script
         // THEN - Exception should be thrown
-        assertThrows(ScriptNotFoundException.class, () -> scriptService.deleteById("2"));
+        assertThrows(ScriptNotFoundException.class, () -> scriptService.delete("1"));
     }
 
 }

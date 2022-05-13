@@ -7,9 +7,8 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import pragmasoft.andriilupynos.js_executioner.application.api.dto.*;
-import pragmasoft.andriilupynos.js_executioner.domain.model.script.ExecutionStatus;
-import pragmasoft.andriilupynos.js_executioner.domain.model.script.ScriptFindFilter;
-import pragmasoft.andriilupynos.js_executioner.domain.service.ScriptService;
+import pragmasoft.andriilupynos.js_executioner.domain.ScriptInfo;
+import pragmasoft.andriilupynos.js_executioner.domain.ScriptService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,25 +38,28 @@ public class ScriptController {
     @PostMapping(path = "/scripts")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public EntityModel<ScriptCreateRespDto> scheduleScript(@RequestBody ScriptCreateRqDto rq) {
-        var id = scriptService.scheduleScript(rq.getCode(), rq.getExecutionDate());
+        var script = scriptService.create(rq.getCode(), rq.getName());
+        scriptService.execute(script);
         //noinspection ConstantConditions
         return EntityModel.of(
-                new ScriptCreateRespDto(id),
+                new ScriptCreateRespDto(script.name),
                 linkTo(methodOn(ScriptController.class).scheduleScript(null)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL),
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(script.name)).withRel(HATEOAS_SCRIPT_REL),
                 linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
 
     @Operation(
-            operationId = "findScriptFullInfoById",
-            summary = "Find a script by id."
+            operationId = "findScriptFullInfoByName",
+            summary = "Find a script by name."
     )
-    @GetMapping("/scripts/{id}")
-    public EntityModel<ScriptDto> findScriptFullInfoById(@PathVariable String id) {
+    @GetMapping("/scripts/{name}")
+    public EntityModel<ScriptDto> findScriptFullInfoById(@PathVariable String name) {
+        var scriptInfo = scriptService.get(name);
+        var scriptExecution = scriptService.executionOf(scriptInfo);
         return EntityModel.of(
-                new ScriptDto(scriptService.getFullInfoById(id)),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withSelfRel(),
+                new ScriptDto(scriptInfo, scriptExecution.orElse(null)),
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(name)).withSelfRel(),
                 linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
     }
@@ -67,11 +69,11 @@ public class ScriptController {
             summary = "Delete a script by id.",
             description = "Deletes a script, stopping current execution if it is being performed."
     )
-    @DeleteMapping("/scripts/{id}")
+    @DeleteMapping("/scripts/{name}")
     // Here we do not care about return of generic wildcard type from method
     @SuppressWarnings("java:S1452")
-    public RepresentationModel<?> deleteScriptById(@PathVariable String id) {
-        scriptService.deleteById(id);
+    public RepresentationModel<?> deleteScriptById(@PathVariable String name) {
+        scriptService.delete(name);
         return new RepresentationModel<>(
                 linkTo(methodOn(ScriptController.class).findScriptsSimpleInfo(null, null)).withRel(HATEOAS_SCRIPTS_REL)
         );
@@ -88,19 +90,16 @@ public class ScriptController {
             @RequestParam(required = false) ScriptExecutionStatusDto status,
             @RequestParam(required = false) Boolean newFirst
     ) {
-        var filterBuilder =
-                ScriptFindFilter.builder()
-                        .newFirst(newFirst);
-        if (status != null)
-            filterBuilder.status(ExecutionStatus.valueOf(status.name()));
-
-        var scripts = scriptService.getShortInfoMatching(filterBuilder.build())
+        var scripts = scriptService.all(
+                        Boolean.TRUE.equals(newFirst) ? ScriptService.SortBy.CREATED : null,
+                        status != null ? ScriptInfo.Status.valueOf(status.name()) : null
+                )
                 .stream()
                 .map(ScriptSimpleDto::new)
                 .map(scriptDto ->
                         EntityModel.of(
                                 scriptDto,
-                                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(scriptDto.getId())).withSelfRel()
+                                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(scriptDto.getName())).withSelfRel()
                         )
                 )
                 .collect(Collectors.toList());
@@ -118,21 +117,19 @@ public class ScriptController {
                     "Currently allows only to stop the script. " +
                     "Does nothing if script is not being executed."
     )
-    @PatchMapping("/scripts/{id}/execution")
+    @DeleteMapping("/scripts/{name}/execution")
     @ResponseStatus(HttpStatus.ACCEPTED)
     // Here we do not care about return of generic wildcard type from method
     @SuppressWarnings("java:S1452")
     public RepresentationModel<?> changeScriptExecution(
-            @PathVariable String id,
-            @RequestBody ScriptChangeExecutionRqDto rq
+            @PathVariable String name
     ) {
-        scriptService.changeExecution(id, ExecutionStatus.valueOf(rq.getStatus().name()));
-        //noinspection ConstantConditions
+        scriptService.stopExecution(name);
         return RepresentationModel.of(
                 null,
                 List.of(
-                        linkTo(methodOn(ScriptController.class).changeScriptExecution(id, null)).withSelfRel(),
-                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL)
+                        linkTo(methodOn(ScriptController.class).changeScriptExecution(name)).withSelfRel(),
+                        linkTo(methodOn(ScriptController.class).findScriptFullInfoById(name)).withRel(HATEOAS_SCRIPT_REL)
                 )
         );
     }
@@ -141,12 +138,14 @@ public class ScriptController {
             operationId = "getScriptExecution",
             summary = "Get information about script execution. "
     )
-    @GetMapping("/scripts/{id}/execution")
-    public EntityModel<ScriptExecutionDto> getScriptExecution(@PathVariable String id) {
+    @GetMapping("/scripts/{name}/execution")
+    public EntityModel<ScriptExecutionDto> getScriptExecution(@PathVariable String name) {
+        var scriptInfo = scriptService.get(name);
+        var scriptExecution = scriptService.executionOf(scriptInfo);
         return EntityModel.of(
-                new ScriptExecutionDto(scriptService.getExecutionInfo(id)),
-                linkTo(methodOn(ScriptController.class).getScriptExecution(id)).withSelfRel(),
-                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(id)).withRel(HATEOAS_SCRIPT_REL)
+                new ScriptExecutionDto(scriptInfo, scriptExecution.orElse(null)),
+                linkTo(methodOn(ScriptController.class).getScriptExecution(name)).withSelfRel(),
+                linkTo(methodOn(ScriptController.class).findScriptFullInfoById(name)).withRel(HATEOAS_SCRIPT_REL)
         );
     }
 

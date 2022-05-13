@@ -1,24 +1,22 @@
 package pragmasoft.andriilupynos.js_executioner.application.api.dto;
 
 import lombok.Getter;
-import pragmasoft.andriilupynos.js_executioner.domain.model.script.ScriptShortInfo;
+import pragmasoft.andriilupynos.js_executioner.domain.ScriptInfo;
 
 import java.util.Date;
 
 @Getter
 public class ScriptSimpleDto {
 
-    private final String id;
+    private final String name;
     private final String code;
     private final Date createdDate;
-    private final Date scheduledAt;
     private final ScriptExecutionStatusDto status;
 
-    public ScriptSimpleDto(ScriptShortInfo script) {
-        this.id = script.getId();
-        this.code = script.getCode();
-        this.createdDate = script.getCreatedDate();
-        this.scheduledAt = script.getScheduledAt();
+    public ScriptSimpleDto(ScriptInfo script) {
+        this.name = script.name;
+        this.code = script.script.code;
+        this.createdDate = new Date(script.created.toEpochMilli());
         this.status = ScriptExecutionStatusDto.valueOf(script.getStatus().name());
     }
 
