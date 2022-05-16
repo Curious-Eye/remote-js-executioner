@@ -31,10 +31,13 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.zalando:problem-spring-web-starter:0.27.0'
     implementation 'org.springframework.boot:spring-boot-starter-hateoas'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 
     implementation 'org.springdoc:springdoc-openapi-ui:1.6.8'
+    implementation 'org.zalando:problem-spring-web-starter:0.27.0'
 
     implementation 'org.graalvm.sdk:graal-sdk:22.0.0'
     implementation 'org.graalvm.js:js:22.0.0'
