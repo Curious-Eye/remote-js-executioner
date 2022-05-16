@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "problem.base-uri",
+      "type": "java.lang.String",
+      "description": "Base uri used by zalando problem library to return type"
+    }
+  ]
+}
